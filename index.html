@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b2730" />
+  <meta name="description" content="Terra Testudo, city-builder et jeu de stratégie sur le dos d'une tortue-monde évolutive." />
+  <title>Terra Testudo — Les Mondes-Dos</title>
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="preload" href="assets/terra-testudo-title-art.png" as="image" fetchpriority="high" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <noscript>Terra Testudo nécessite JavaScript pour fonctionner.</noscript>
+
+  <section id="startScreen" class="start-screen" aria-label="Menu principal">
+    <div class="start-backdrop" aria-hidden="true">
+      <img class="start-art" src="assets/terra-testudo-title-art.png" alt="" width="1672" height="937" fetchpriority="high" />
+    </div>
+
+    <div class="start-card glass-card">
+      <div class="eyebrow">CITY-BUILDER · EXPLORATION · DÉFENSE</div>
+      <h1><span>Terra Testudo</span><small>Les Mondes-Dos</small></h1>
+      <p class="start-lead">Fondez une maison sur un jeune tortillon, faites grandir sa carapace jusqu’à porter une région entière, puis affrontez ou ralliez les autres créatures-mondes.</p>
+
+      <form id="newGameForm" class="new-game-form">
+        <div class="form-grid">
+          <label>
+            <span>Nom de la cité</span>
+            <input id="cityNameInput" name="cityName" maxlength="32" value="Havre-d’Écaille" autocomplete="off" />
+          </label>
+          <label>
+            <span>Nom de la tortue</span>
+            <input id="turtleNameInput" name="turtleName" maxlength="28" value="Oroméa" autocomplete="off" />
+          </label>
+        </div>
+
+        <fieldset class="difficulty-fieldset">
+          <legend>Intensité du voyage</legend>
+          <label class="difficulty-option">
+            <input type="radio" name="difficulty" value="conte" />
+            <span><strong>Conte</strong><small>Construction généreuse, raids plus doux.</small></span>
+          </label>
+          <label class="difficulty-option selected">
+            <input type="radio" name="difficulty" value="voyage" checked />
+            <span><strong>Voyage</strong><small>Équilibre recommandé entre cité et guerre.</small></span>
+          </label>
+          <label class="difficulty-option">
+            <input type="radio" name="difficulty" value="tempete" />
+            <span><strong>Tempête</strong><small>Économie tendue et ennemis plus puissants.</small></span>
+          </label>
+        </fieldset>
+
+        <div class="start-actions">
+          <button id="continueBtn" class="button secondary" type="button">Continuer</button>
+          <button class="button primary" type="submit">Fonder mon monde</button>
+        </div>
+      </form>
+
+      <div class="feature-strip" aria-label="Fonctionnalités principales">
+        <span>5 âges d’évolution</span>
+        <span>Ville libre sur grille</span>
+        <span>Raids mer et ciel</span>
+        <span>Sauvegarde locale</span>
+      </div>
+    </div>
+
+    <div class="version-badge">Version <span id="startVersion">1.1.0</span> · Jouable hors ligne</div>
+  </section>
+
+  <div id="gameApp" class="game-app" hidden>
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true">◉</div>
+        <div>
+          <strong id="brandCity">Havre-d’Écaille</strong>
+          <span id="brandTier">Tortillon</span>
+        </div>
+      </div>
+
+      <div id="resourceBar" class="resource-bar" aria-label="Ressources"></div>
+
+      <div class="top-controls">
+        <button id="pauseBtn" class="icon-button" type="button" title="Pause ou reprise" aria-label="Pause ou reprise">Ⅱ</button>
+        <button id="speedBtn" class="speed-button" type="button" title="Vitesse du jeu">×1</button>
+        <button id="saveBtn" class="icon-button" type="button" title="Sauvegarder" aria-label="Sauvegarder">▣</button>
+        <button id="soundBtn" class="icon-button" type="button" title="Son" aria-label="Activer ou couper le son">♪</button>
+        <button id="helpBtn" class="icon-button" type="button" title="Aide" aria-label="Ouvrir l’aide">?</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside id="commandPanel" class="command-panel panel-surface">
+        <div class="panel-heading compact">
+          <div>
+            <span class="eyebrow">COMMANDERIE</span>
+            <h2>Développer le monde</h2>
+          </div>
+          <button id="closeCommandMobile" class="panel-close" type="button" aria-label="Fermer">×</button>
+        </div>
+
+        <nav id="commandTabs" class="command-tabs" aria-label="Sections de jeu">
+          <button data-panel="build" class="active" type="button"><span>⌂</span>Construire</button>
+          <button data-panel="expeditions" type="button"><span>⚑</span>Expéditions</button>
+          <button data-panel="evolution" type="button"><span>✦</span>Évolution</button>
+          <button data-panel="world" type="button"><span>◎</span>Archipel</button>
+          <button data-panel="chronicle" type="button"><span>☰</span>Chronique</button>
+        </nav>
+
+        <div id="commandContent" class="command-content"></div>
+      </aside>
+
+      <section id="gameStage" class="game-stage" aria-label="Zone de jeu">
+        <canvas id="gameCanvas" tabindex="0" aria-label="Monde sur le dos de la tortue" aria-describedby="canvasKeyboardHelp"></canvas>
+        <p id="canvasKeyboardHelp" class="sr-only">Utilisez les flèches pour parcourir les cases, Entrée pour inspecter ou construire, et Échap pour annuler la pose.</p>
+        <div id="gameAnnouncements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+        <div class="view-switch" role="group" aria-label="Vue active">
+          <button id="shellViewBtn" class="active" type="button">Carapace</button>
+          <button id="worldViewBtn" type="button">Archipel</button>
+        </div>
+
+        <div id="worldStatus" class="world-status"></div>
+        <div id="raidBanner" class="raid-banner" role="status" aria-live="polite" hidden></div>
+        <div id="canvasHint" class="canvas-hint">Cliquez sur une case pour l’inspecter.</div>
+
+        <div class="mobile-stage-actions">
+          <button id="mobileCommandBtn" class="stage-fab" type="button">Construire</button>
+          <button id="mobileInspectorBtn" class="stage-fab" type="button">Inspecter</button>
+        </div>
+      </section>
+
+      <aside id="inspectorPanel" class="inspector-panel panel-surface">
+        <div class="panel-heading compact">
+          <div>
+            <span class="eyebrow">OBSERVATOIRE</span>
+            <h2>État du monde</h2>
+          </div>
+          <button id="closeInspectorMobile" class="panel-close" type="button" aria-label="Fermer">×</button>
+        </div>
+        <div id="inspectorContent" class="inspector-content"></div>
+      </aside>
+    </main>
+  </div>
+
+  <div id="eventModal" class="modal-layer" hidden>
+    <div class="modal-card event-card" role="dialog" aria-modal="true" aria-labelledby="eventTitle">
+      <div class="event-symbol">✦</div>
+      <span class="eyebrow">ÉVÉNEMENT DU VOYAGE</span>
+      <h2 id="eventTitle"></h2>
+      <p id="eventText"></p>
+      <div id="eventChoices" class="modal-actions stacked"></div>
+    </div>
+  </div>
+
+  <div id="combatModal" class="modal-layer" hidden>
+    <div class="modal-card combat-result-card" role="dialog" aria-modal="true" aria-labelledby="combatResultTitle">
+      <div id="combatResultSymbol" class="event-symbol">⚔</div>
+      <span class="eyebrow">RÉSULTAT DU RAID</span>
+      <h2 id="combatResultTitle"></h2>
+      <p id="combatResultText"></p>
+      <div id="combatReward" class="reward-grid"></div>
+      <button id="closeCombatBtn" class="button primary full" type="button">Revenir à la cité</button>
+    </div>
+  </div>
+
+  <div id="helpModal" class="modal-layer" hidden>
+    <div class="modal-card help-card story-guide" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <button id="closeHelpBtn" class="modal-close" type="button" aria-label="Fermer">×</button>
+      <span class="eyebrow">GUIDE DU PREMIER DOS</span>
+      <div id="helpScenes" class="help-scenes">
+        <article class="help-scene active" data-help-step="0">
+          <span class="story-chapter">I · L’ÉVEIL</span>
+          <h2 id="helpTitle" tabindex="-1">Un monde prend vie</h2>
+          <p id="helpStoryLead">Une jeune tortue vous confie sa carapace. Votre première maison est debout ; tout le reste dépendra de l’équilibre entre la cité et l’être qui la porte.</p>
+          <div class="story-objective"><strong>Premier geste</strong><span>Construisez une Terrasse nourricière sur un terreau fertile.</span></div>
+        </article>
+        <article class="help-scene" data-help-step="1" hidden>
+          <span class="story-chapter">II · GRANDIR ENSEMBLE</span>
+          <h2 tabindex="-1">Une ville et une créature</h2>
+          <p>Produisez, logez les habitants et gardez assez de vivres. Nourrir la tortue restaure sa satiété et accélère sa croissance vers cinq formes successives.</p>
+          <div class="story-pill-row"><span>Bâtir</span><span>Nourrir</span><span>Évoluer</span></div>
+        </article>
+        <article class="help-scene" data-help-step="2" hidden>
+          <span class="story-chapter">III · LES MONDES-DOS</span>
+          <h2 tabindex="-1">La mer et le ciel vous observent</h2>
+          <p>Une vigie protège les débuts. Plus tard, ports et aérodromes ouvriront l’archipel : explorez, commercez, ralliez ou affrontez ses peuples.</p>
+          <div class="controls-card"><strong>Commandes essentielles</strong><span>Clic ou Entrée : agir · Flèches : parcourir · 1–3 : vitesse · Espace : pause · M : changer de vue</span></div>
+        </article>
+      </div>
+      <div class="story-guide-footer">
+        <div id="helpStepLabel" class="story-progress" role="status" aria-live="polite">Étape 1 sur 3</div>
+        <div class="story-guide-actions">
+          <button id="helpBackBtn" class="button secondary" type="button" hidden>Précédent</button>
+          <button id="helpNextBtn" class="button primary" type="button">Continuer</button>
+          <button id="helpDoneBtn" class="button primary" type="button" hidden>Commencer à bâtir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="campaignModal" class="modal-layer campaign-layer" hidden>
+    <div class="modal-card campaign-card" role="dialog" aria-modal="true" aria-labelledby="campaignTitle">
+      <span class="eyebrow">CHRONIQUE ACCOMPLIE</span>
+      <div class="campaign-crown" aria-hidden="true">✦</div>
+      <h2 id="campaignTitle" tabindex="-1">Une tortue devient un monde</h2>
+      <p id="campaignLead"></p>
+      <div id="campaignStats" class="campaign-stats"></div>
+      <p class="campaign-freeplay">La campagne de croissance est terminée. Votre royaume reste jouable : fédérez l’archipel, bâtissez les monuments elder et résistez aux tempêtes sans fin.</p>
+      <div class="campaign-actions">
+        <button id="campaignExportBtn" class="button secondary" type="button">Exporter la chronique</button>
+        <button id="campaignContinueBtn" class="button primary" type="button">Continuer en mode libre</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+**
+!Dockerfile
+!server.mjs
+!index.html
+!styles.css
+!sw.js
+!manifest.webmanifest
+!assets/
+!assets/**
+!src/
+!src/**

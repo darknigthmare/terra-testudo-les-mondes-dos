@@ -1,0 +1,16 @@
+{
+  "name": "terra-testudo-les-mondes-dos",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node tests/state.test.mjs && node tests/data.test.mjs",
+    "syntax": "node scripts/qa.mjs syntax",
+    "smoke": "node scripts/qa.mjs smoke",
+    "qa": "node scripts/qa.mjs all"
+  }
+}

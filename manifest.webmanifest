@@ -1,0 +1,12 @@
+{
+  "name": "Terra Testudo — Les Mondes-Dos",
+  "short_name": "Terra Testudo",
+  "description": "City-builder et stratégie sur le dos d'une tortue-monde évolutive.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#071b26",
+  "theme_color": "#0b2730",
+  "icons": [
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

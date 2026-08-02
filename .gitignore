@@ -1,0 +1,23 @@
+.DS_Store
+Thumbs.db
+node_modules/
+*.log
+.vscode/
+.idea/
+
+# Secrets and local environment overrides
+.env
+.env.*
+!.env.example
+
+# Local service links and agent tooling
+.vercel/
+.agent-browser/
+.agents/
+.codex/
+
+# Generated QA output and scratch files
+coverage/
+.nyc_output/
+.tmp/
+tmp/
