@@ -2,6 +2,8 @@
 
 **Terra Testudo** est un jeu de construction, d’exploration et de défense jouable dans un navigateur. Le joueur commence avec une petite maison sur le dos d’un tortillon, développe une ville vivante, nourrit la créature qui la porte, puis fait évoluer celle-ci jusqu’à la forme de **tortue-monde elder** capable de soutenir une région entière.
 
+[Jouer à la version de production](https://terra-testudo-les-mondes-dos.vercel.app)
+
 La version 1.1.0 propose une campagne guidée complète, puis un mode libre à objectifs d’héritage. Le projet est autonome : aucun compte, aucune API distante et aucune dépendance de production ne sont nécessaires.
 
 ## Lancer le jeu
