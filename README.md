@@ -98,7 +98,7 @@ terra-testudo/
 ├── scripts/qa.mjs             Validation de release sans dépendance
 ├── tests/state.test.mjs       Tests de simulation
 ├── tests/data.test.mjs        Contrats de contenu et de progression
-├── GAME_DESIGN.md             Document de conception complet
+├── GAME_DESIGN.md             Bible du jeu : lore, campagne, plan de complétude
 ├── CODEX_GUIDE.md             Consignes pour poursuivre avec Codex
 ├── QA_REPORT.md               Résultats des vérifications techniques
 ├── docs/screenshots/          Captures bureau et mobile validées
