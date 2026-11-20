@@ -70,7 +70,7 @@ export const TERRAIN = {
   forest: { name: 'Bosquet dorsal', buildable: true, production: 'wood' },
   rock: { name: 'Écaille rocheuse', buildable: true, production: 'stone' },
   spring: { name: 'Source sacrée', buildable: true, production: 'spirit' },
-  ridge: { name: 'Crête ancienne', buildable: false, production: null },
+  ridge: { name: 'Crête ancienne', buildable: true, production: null },
 };
 
 export const BUILDINGS = {
@@ -100,7 +100,7 @@ export const BUILDINGS = {
   },
   watchtower: {
     name: 'Tour de vigie', icon: '♜', category: 'defense',
-    description: 'Repère les raids et tire sur les petites menaces maritimes ou aériennes.',
+    description: 'Repère les raids et tire sur les menaces maritimes comme aériennes.',
     cost: { wood: 22, stone: 14 }, production: {}, upkeep: { food: 0.01 },
     housing: 0, workers: 1, defense: 6, range: 0.72, targets: ['sea', 'air'], fireRate: 1.35,
     prosperity: 12, allowed: ['grass', 'fertile', 'rock', 'spring'],
@@ -113,7 +113,7 @@ export const BUILDINGS = {
   },
   market: {
     name: 'Marché des marées', icon: '¤', category: 'commerce',
-    description: 'Transforme une partie des surplus en perles et augmente le bonheur.',
+    description: 'Attire les échanges des marées, produit des perles et augmente le bonheur.',
     cost: { wood: 28, stone: 16 }, production: { pearls: 0.20 }, upkeep: { food: 0.05 },
     housing: 0, workers: 2, defense: 0, prosperity: 18, harmony: 2, allowed: ['grass', 'fertile', 'rock', 'spring'],
   },
@@ -128,7 +128,7 @@ export const BUILDINGS = {
     name: 'Palisade vivante', icon: '▥', category: 'defense',
     description: 'Renforce la résistance de la carapace aux abordages.',
     cost: { wood: 15, stone: 5 }, production: {}, upkeep: {},
-    housing: 0, workers: 0, defense: 3, armor: 18, prosperity: 5, allowed: ['grass', 'fertile', 'forest', 'rock', 'spring'],
+    housing: 0, workers: 0, armor: 18, prosperity: 5, allowed: ['grass', 'fertile', 'forest', 'rock', 'spring'],
   },
   healer: {
     name: 'Maison des soigneurs', icon: '✚', category: 'support',
@@ -138,7 +138,7 @@ export const BUILDINGS = {
   },
   workshop: {
     name: 'Atelier dorsal', icon: '⚙', category: 'industry',
-    description: 'Produit des mécanismes nécessaires aux défenses lourdes et aux réparations.',
+    description: 'Produit des mécanismes nécessaires aux défenses lourdes et aux monuments.',
     cost: { wood: 50, stone: 38, pearls: 12 }, production: { parts: 0.18 }, upkeep: { food: 0.08 },
     housing: 0, workers: 3, defense: 0, prosperity: 30, allowed: ['grass', 'rock'],
   },
@@ -164,7 +164,7 @@ export const BUILDINGS = {
   },
   academy: {
     name: 'Académie des navigateurs', icon: '⌘', category: 'science',
-    description: 'Accélère les expéditions et révèle davantage d’informations sur les créatures-mondes.',
+    description: 'Accélère les expéditions et ajoute une équipe disponible.',
     cost: { wood: 52, stone: 40, pearls: 24 }, production: { spirit: 0.10 }, upkeep: { food: 0.08 },
     housing: 0, workers: 3, defense: 0, prosperity: 32, allowed: ['grass', 'fertile', 'rock', 'spring'],
   },
@@ -185,7 +185,7 @@ export const BUILDINGS = {
     name: 'Muraille de basalte', icon: '▰', category: 'defense',
     description: 'Protège les districts et renforce la vitalité maximale de la tortue ancienne.',
     cost: { stone: 65, parts: 5 }, production: {}, upkeep: {},
-    housing: 0, workers: 0, defense: 7, armor: 52, prosperity: 18, allowed: ['grass', 'fertile', 'forest', 'rock', 'spring'],
+    housing: 0, workers: 0, armor: 52, prosperity: 18, allowed: ['grass', 'fertile', 'forest', 'rock', 'spring'],
   },
   greatMarket: {
     name: 'Grand bazar intermonde', icon: '◈', category: 'commerce',
@@ -215,15 +215,15 @@ export const BUILDINGS = {
   },
   grandSanctuary: {
     name: 'Sanctuaire de la Première Carapace', icon: '✦', category: 'spirit',
-    description: 'Stabilise toute la région, soigne la tortue et rayonne sur les alliés.',
+    description: 'Apaise la région, soigne la tortue et renforce durablement l’harmonie.',
     cost: { wood: 120, stone: 160, pearls: 80, spirit: 140 }, production: { spirit: 1.0, vitality: 0.18 }, upkeep: { food: 0.22 },
     housing: 0, workers: 6, defense: 0, prosperity: 120, harmony: 15, allowed: ['spring', 'grass'], unique: true,
   },
   worldGate: {
     name: 'Porte des grands courants', icon: '◎', category: 'monument',
-    description: 'Permet de voyager instantanément entre les créatures-mondes alliées.',
+    description: 'Canalise les grands courants de l’archipel et en tire un flux constant de perles.',
     cost: { stone: 180, pearls: 150, spirit: 160, parts: 60 }, production: { pearls: 0.35 }, upkeep: { food: 0.16 },
-    housing: 0, workers: 6, defense: 12, prosperity: 145, allowed: ['rock', 'spring'], unique: true,
+    housing: 0, workers: 6, prosperity: 145, allowed: ['rock', 'spring'], unique: true,
   },
 };
 
@@ -243,7 +243,7 @@ export const BUILD_CATEGORIES = [
 
 export const WORLD_NODE_ARCHETYPES = [
   {
-    kind: 'turtle', icon: '🐢', names: ['Ammara', 'Khelon', 'Orméane', 'Talassar', 'Virdos'],
+    kind: 'turtle', icon: '⬢', names: ['Ammara', 'Khelon', 'Orméane', 'Talassar', 'Virdos'],
     factions: ['Pèlerins de Jade', 'Ligue des Carapaces', 'Veilleurs des Courants'],
     relation: 18, power: [18, 48], preferred: 'trade', description: 'Une autre tortue-monde portant villages et jardins suspendus.',
   },

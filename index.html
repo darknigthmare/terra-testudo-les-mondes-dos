@@ -16,7 +16,7 @@
 
   <section id="startScreen" class="start-screen" aria-label="Menu principal">
     <div class="start-backdrop" aria-hidden="true">
-      <img class="start-art" src="assets/terra-testudo-title-art.png" alt="" width="1672" height="937" fetchpriority="high" />
+      <img class="start-art" src="assets/terra-testudo-title-art.png" alt="" width="1672" height="941" fetchpriority="high" />
     </div>
 
     <div class="start-card glass-card">
@@ -101,11 +101,11 @@
         </div>
 
         <nav id="commandTabs" class="command-tabs" aria-label="Sections de jeu">
-          <button data-panel="build" class="active" type="button"><span>⌂</span>Construire</button>
-          <button data-panel="expeditions" type="button"><span>⚑</span>Expéditions</button>
-          <button data-panel="evolution" type="button"><span>✦</span>Évolution</button>
-          <button data-panel="world" type="button"><span>◎</span>Archipel</button>
-          <button data-panel="chronicle" type="button"><span>☰</span>Chronique</button>
+          <button data-panel="build" class="active" type="button"><span>I</span>Construire</button>
+          <button data-panel="expeditions" type="button"><span>II</span>Expéditions</button>
+          <button data-panel="evolution" type="button"><span>III</span>Évolution</button>
+          <button data-panel="world" type="button"><span>IV</span>Archipel</button>
+          <button data-panel="chronicle" type="button"><span>V</span>Chronique</button>
         </nav>
 
         <div id="commandContent" class="command-content"></div>
@@ -123,7 +123,13 @@
 
         <div id="worldStatus" class="world-status"></div>
         <div id="raidBanner" class="raid-banner" role="status" aria-live="polite" hidden></div>
-        <div id="canvasHint" class="canvas-hint">Cliquez sur une case pour l’inspecter.</div>
+        <div id="canvasHint" class="canvas-hint">Touchez ou cliquez sur une case pour l’inspecter.</div>
+
+        <div id="cameraControls" class="camera-controls" role="group" aria-label="Zoom et cadrage de la carapace" hidden>
+          <button id="zoomOutBtn" type="button" title="Dézoomer" aria-label="Dézoomer">−</button>
+          <button id="zoomInBtn" type="button" title="Zoomer" aria-label="Zoomer">+</button>
+          <button id="recenterBtn" type="button" title="Recentrer la carapace">Recentrer</button>
+        </div>
 
         <div class="mobile-stage-actions">
           <button id="mobileCommandBtn" class="stage-fab" type="button">Construire</button>
@@ -186,7 +192,7 @@
           <span class="story-chapter">III · LES MONDES-DOS</span>
           <h2 tabindex="-1">La mer et le ciel vous observent</h2>
           <p>Une vigie protège les débuts. Plus tard, ports et aérodromes ouvriront l’archipel : explorez, commercez, ralliez ou affrontez ses peuples.</p>
-          <div class="controls-card"><strong>Commandes essentielles</strong><span>Clic ou Entrée : agir · Flèches : parcourir · 1–3 : vitesse · Espace : pause · M : changer de vue</span></div>
+          <div class="controls-card"><strong>Commandes essentielles</strong><span>Clic ou Entrée : agir · Flèches : parcourir · 1–3 : vitesse · Espace : pause · M : changer de vue · Pincement : zoomer</span></div>
         </article>
       </div>
       <div class="story-guide-footer">

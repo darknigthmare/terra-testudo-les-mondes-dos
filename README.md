@@ -67,6 +67,8 @@ La validation contrôle la syntaxe, les règles de contenu, le serveur HTTP et 1
 |---|---|
 | Clic | Sélectionner une case, un monde ou poser un bâtiment |
 | Molette | Zoomer ou dézoomer la carapace |
+| Pincement / glissement à deux doigts | Zoomer et déplacer la vue sur mobile |
+| Boutons − / + / Recentrer (mobile) | Zoomer, dézoomer et recentrer la carapace |
 | Double-clic | Recentrer la caméra |
 | Flèches | Parcourir les cases de la carapace |
 | Entrée | Inspecter une case ou construire sur la case sélectionnée |

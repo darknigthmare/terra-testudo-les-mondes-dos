@@ -304,7 +304,8 @@ export function addResources(state, reward = {}) {
     } else if (resource === 'vitality') {
       state.vitality = clamp(state.vitality + amount, 0, getEconomy(state).maxVitality);
     } else if (resource === 'relation') {
-      const node = state.worldNodes.find((item) => item.id === state.selectedWorldNodeId);
+      const node = state.worldNodes.find((item) => item.id === state.selectedWorldNodeId && item.discovered && !item.defeated)
+        || state.worldNodes.find((item) => item.discovered && !item.defeated);
       if (node) node.relation = clamp(node.relation + amount, -100, 100);
     } else if (resource === 'temporaryDefense') {
       state.temporaryDefense += amount;
@@ -402,10 +403,14 @@ function adjacencyMultiplier(state, tile, buildingId) {
   const neighbors = getNeighborTiles(state, tile.x, tile.y);
   let multiplier = 1;
   if (buildingId === 'farm') {
-    const waterSupport = neighbors.filter((neighbor) => ['well', 'reservoir'].includes(neighbor.building?.id)).length;
-    multiplier += waterSupport * 0.22;
+    // The reservoir is described as a strong neighbour boost, so it outweighs the simple well.
+    for (const neighbor of neighbors) {
+      if (neighbor.building?.id === 'reservoir') multiplier += 0.34;
+      else if (neighbor.building?.id === 'well') multiplier += 0.18;
+    }
   }
-  if (['watchtower', 'ballista', 'stormCannon'].includes(buildingId)) {
+  const data = BUILDINGS[buildingId];
+  if (data?.defense > 0 && data.targets?.length) {
     const walls = neighbors.filter((neighbor) => ['palisade', 'stoneWall'].includes(neighbor.building?.id)).length;
     multiplier += walls * 0.08;
   }
@@ -460,8 +465,8 @@ export function getEconomy(state) {
     if (data.defense) {
       const defense = data.defense * adjacencyMultiplier(state, tile, tile.building.id) * hpFactor * efficiency;
       totals.defense += defense;
-      if (!data.targets || data.targets.includes('sea')) totals.seaDefense += defense;
-      if (!data.targets || data.targets.includes('air')) totals.airDefense += defense;
+      if (data.targets?.includes('sea')) totals.seaDefense += defense;
+      if (data.targets?.includes('air')) totals.airDefense += defense;
     }
   }
 
@@ -573,6 +578,9 @@ export function expeditionAvailable(state, expedition) {
 export function startExpedition(state, expeditionId) {
   const data = EXPEDITIONS.find((item) => item.id === expeditionId);
   if (!data) return { ok: false, reason: 'Expédition inconnue.' };
+  if (state.event) return { ok: false, reason: 'Résolvez l’événement en cours avant de préparer une expédition.' };
+  if (state.pendingRaid) return { ok: false, reason: 'Une menace approche : les équipages doivent défendre la cité.' };
+  if (state.combat) return { ok: false, reason: 'Les équipages sont mobilisés par le raid en cours.' };
   if (!expeditionAvailable(state, data)) return { ok: false, reason: 'Infrastructure requise non construite.' };
   if (state.expeditions.length >= 2 + (countBuildings(state, 'academy') > 0 ? 1 : 0)) return { ok: false, reason: 'Toutes les équipes sont déjà parties.' };
   const cost = { food: Math.max(8, Math.ceil(data.duration * 0.32)) };
@@ -611,7 +619,6 @@ function completeExpedition(state, expedition) {
   }
   addResources(state, reward);
   state.stats.expeditionsCompleted += 1;
-  state.stats.worldsVisited += 1;
   state.growth += 4 + data.duration * 0.04;
   updateQuestProgress(state);
 }
@@ -761,7 +768,7 @@ export function simulateCombat(state, delta) {
   for (const tile of state.tiles) {
     if (!tile.building || !isTileActive(state, tile.x, tile.y)) continue;
     const data = BUILDINGS[tile.building.id];
-    if (!data?.defense) continue;
+    if (!data?.defense || !data.targets?.length) continue;
     tile.building.cooldown = Math.max(0, (tile.building.cooldown || 0) - delta);
     if (tile.building.cooldown > 0) continue;
     const target = chooseDefenseTarget(state, data, combat.enemies);
@@ -867,7 +874,7 @@ function worldActionUnavailable(state) {
 
 function worldAccessUnavailable(state, mode) {
   if (mode === 'air' && countBuildings(state, 'skyDock') + countBuildings(state, 'aerie') <= 0) {
-    return 'Un aérodrome est nécessaire pour atteindre ce monde.';
+    return 'Une infrastructure aérienne est nécessaire pour atteindre ce monde.';
   }
   if (mode === 'sea' && countBuildings(state, 'harbor') <= 0) {
     return 'Un port est nécessaire pour atteindre ce monde.';
@@ -900,7 +907,7 @@ export function tradeWithNode(state, nodeId) {
   if (!node) return { ok: false, reason: 'Monde inaccessible.' };
   const unavailable = worldActionUnavailable(state) || worldAccessUnavailable(state, node.altitude) || nodeCooldownUnavailable(node);
   if (unavailable) return { ok: false, reason: unavailable };
-  if (node.relation < -25) return { ok: false, reason: 'Cette faction refuse le commerce.' };
+  if (node.relation <= -25) return { ok: false, reason: 'Cette faction refuse le commerce.' };
   const cost = node.preferred === 'spirit' ? { spirit: 12 } : { food: 24 };
   if (!spendResources(state, cost)) return { ok: false, reason: 'Ressources insuffisantes pour l’échange.' };
   const reward = node.kind === 'crab' ? { stone: 34, parts: 5 } : node.kind === 'manta' ? { pearls: 22, spirit: 9 } : { wood: 26, stone: 18, pearls: 12 };
@@ -941,10 +948,10 @@ export function exploreNode(state, nodeId) {
   return { ok: true, reward, firstExploration };
 }
 
-export function attackNode(state, nodeId, mode = null) {
+export function attackNode(state, nodeId) {
   const node = state.worldNodes.find((item) => item.id === nodeId && item.discovered && !item.defeated);
   if (!node) return { ok: false, reason: 'Cible inaccessible.' };
-  const desired = mode || (node.altitude === 'air' ? 'air' : 'sea');
+  const desired = node.altitude === 'air' ? 'air' : 'sea';
   const unavailable = worldActionUnavailable(state) || worldAccessUnavailable(state, desired) || nodeCooldownUnavailable(node);
   if (unavailable) return { ok: false, reason: unavailable };
   const cost = { food: 26, pearls: 6 };

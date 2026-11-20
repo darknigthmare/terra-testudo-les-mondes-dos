@@ -9,6 +9,7 @@ import {
   TERRAIN,
   TIERS,
 } from './data.js';
+import { buildingIcon, expeditionIcon, goalIcon, resourceIcon, worldIcon } from './icons.js';
 import {
   activeBounds,
   attackNode,
@@ -76,6 +77,10 @@ const elements = {
   canvasHint: $('#canvasHint'),
   mobileCommandBtn: $('#mobileCommandBtn'),
   mobileInspectorBtn: $('#mobileInspectorBtn'),
+  cameraControls: $('#cameraControls'),
+  zoomOutBtn: $('#zoomOutBtn'),
+  zoomInBtn: $('#zoomInBtn'),
+  recenterBtn: $('#recenterBtn'),
   closeCommandMobile: $('#closeCommandMobile'),
   closeInspectorMobile: $('#closeInspectorMobile'),
   eventModal: $('#eventModal'),
@@ -133,17 +138,21 @@ let lastRenderedCombatKey = null;
 let helpStep = 0;
 let modalReturnFocus = null;
 const seenMessages = new Set();
+const touchPoints = new Map();
+let pinchGesture = null;
+let suppressTap = false;
+let suppressTapTimer = 0;
 
 const ALL_META = { ...RESOURCE_META, ...PROGRESS_META };
 const LEGACY_GOALS = [
-  { id: 'elder', icon: '✦', title: 'Porteuse d’un royaume', target: 4, value: (next) => next.tier },
-  { id: 'population', icon: '⌂', title: 'Cent voix sur le dos', target: 100, value: (next) => Math.floor(next.population) },
-  { id: 'expeditions', icon: '⚑', title: 'Maître des courants', target: 8, value: (next) => next.stats.expeditionsCompleted },
-  { id: 'raids', icon: '♜', title: 'Carapace imprenable', target: 5, value: (next) => next.stats.raidsWon },
-  { id: 'enemies', icon: '➹', title: 'Gardienne de l’archipel', target: 30, value: (next) => next.stats.enemiesDefeated },
-  { id: 'worlds', icon: '◎', title: 'Tous les mondes connus', target: 9, value: (next) => next.stats.worldsVisited },
-  { id: 'allies', icon: '◇', title: 'Fédération des géants', target: 3, value: (next) => next.worldNodes.filter((node) => node.relation >= 30 && !node.defeated).length },
-  { id: 'monuments', icon: '♛', title: 'Trois merveilles elder', target: 3, value: (next) => ['citadel', 'grandSanctuary', 'worldGate'].filter((id) => countBuildings(next, id) > 0).length },
+  { id: 'elder', title: 'Porteuse d’un royaume', target: 4, value: (next) => next.tier },
+  { id: 'population', title: 'Cent voix sur le dos', target: 100, value: (next) => Math.floor(next.population) },
+  { id: 'expeditions', title: 'Maître des courants', target: 8, value: (next) => next.stats.expeditionsCompleted },
+  { id: 'raids', title: 'Carapace imprenable', target: 5, value: (next) => next.stats.raidsWon },
+  { id: 'enemies', title: 'Gardienne de l’archipel', target: 30, value: (next) => next.stats.enemiesDefeated },
+  { id: 'worlds', title: 'Tous les mondes connus', target: 9, value: (next) => next.stats.worldsVisited },
+  { id: 'allies', title: 'Fédération des géants', target: 3, value: (next) => next.worldNodes.filter((node) => node.relation >= 25 && !node.defeated).length },
+  { id: 'monuments', title: 'Trois merveilles elder', target: 3, value: (next) => ['citadel', 'grandSanctuary', 'worldGate'].filter((id) => countBuildings(next, id) > 0).length },
 ];
 
 function esc(value) {
@@ -178,14 +187,14 @@ function formatDuration(seconds) {
 function phaseName(progress) {
   if (progress < 0.18) return 'Nuit';
   if (progress < 0.31) return 'Aube';
-  if (progress < 0.69) return 'Jour';
+  if (progress < 0.69) return 'Plein jour';
   if (progress < 0.82) return 'Crépuscule';
   return 'Nuit';
 }
 
 function relationInfo(value) {
-  if (value >= 30) return { className: 'friendly', label: 'Allié' };
-  if (value <= -30) return { className: 'hostile', label: 'Hostile' };
+  if (value >= 25) return { className: 'friendly', label: 'Allié' };
+  if (value <= -25) return { className: 'hostile', label: 'Hostile' };
   return { className: 'neutral', label: 'Prudent' };
 }
 
@@ -193,14 +202,14 @@ function resourceListHtml(values, stateRef = state, markMissing = false) {
   return Object.entries(values || {}).map(([resource, amount]) => {
     const meta = ALL_META[resource] || { icon: '·', name: resource };
     const missing = markMissing && resource in (stateRef?.resources || {}) && (stateRef.resources[resource] || 0) < amount;
-    return `<span class="cost-chip ${missing ? 'missing' : ''}" title="${esc(meta.name)}"><span>${meta.icon}</span>${formatNumber(amount, amount < 10)}</span>`;
+    return `<span class="cost-chip ${missing ? 'missing' : ''}" title="${esc(meta.name)}"><span>${resourceIcon(resource)}</span>${formatNumber(amount, amount < 10)}</span>`;
   }).join('');
 }
 
 function rewardListHtml(values) {
   return Object.entries(values || {}).map(([resource, amount]) => {
     const meta = ALL_META[resource] || { icon: '·', name: resource };
-    return `<span class="reward-chip"><span>${meta.icon}</span><strong>${formatNumber(amount, amount < 10)}</strong> ${esc(meta.name)}</span>`;
+    return `<span class="reward-chip"><span>${resourceIcon(resource)}</span><strong>${formatNumber(amount, amount < 10)}</strong> ${esc(meta.name)}</span>`;
   }).join('');
 }
 
@@ -211,7 +220,7 @@ function buildingProductionText(data) {
     parts.push(`+${amount}/s ${meta.name.toLowerCase()}`);
   }
   if (data.housing) parts.push(`+${data.housing} logements`);
-  if (data.defense) parts.push(`${data.defense} défense`);
+  if (data.defense && data.targets?.length) parts.push(`${data.defense} défense`);
   if (data.armor) parts.push(`+${data.armor} vitalité max.`);
   return parts.join(' · ') || 'Infrastructure de soutien';
 }
@@ -364,6 +373,7 @@ function setView(view) {
   elements.worldViewBtn.classList.toggle('active', view === 'world');
   elements.shellViewBtn.setAttribute('aria-pressed', String(view === 'shell'));
   elements.worldViewBtn.setAttribute('aria-pressed', String(view === 'world'));
+  elements.cameraControls.hidden = view !== 'shell';
   if (view === 'world') {
     ui.selectedBuildId = null;
     elements.gameCanvas.classList.remove('build-cursor');
@@ -388,6 +398,7 @@ function enterGame(nextState, isNew = false) {
   if (!renderer) renderer = new TurtleRenderer(elements.gameCanvas);
   renderer.setMode('shell');
   renderer.resetCamera();
+  elements.cameraControls.hidden = false;
   for (const message of state.messages) seenMessages.add(message.id);
   lastCombatId = state.combat?.id || null;
   lastCombatOutcome = state.combat?.outcome || null;
@@ -411,7 +422,7 @@ function updateResourceBar(economy) {
     const rate = economy.net[resource] || 0;
     const rateClass = rate > 0.005 ? 'positive' : rate < -0.005 ? 'negative' : '';
     return `<div class="resource-chip" title="${esc(meta.name)}" aria-label="${esc(meta.name)} : ${formatNumber(value)}, ${esc(formatRate(rate))}">
-      <span class="resource-icon">${meta.icon}</span>
+      <span class="resource-icon">${resourceIcon(resource)}</span>
       <strong>${formatNumber(value)}</strong>
       <small class="${rateClass}">${formatRate(rate)}</small>
       <span class="sr-only">${esc(meta.name)}</span>
@@ -434,9 +445,10 @@ function updateRaidBanner() {
 
 function renderTopUI() {
   if (!state) return;
+  const touchInput = window.matchMedia?.('(pointer: coarse)')?.matches ?? false;
   const economy = getEconomy(state);
   elements.brandCity.textContent = state.cityName;
-  elements.brandTier.textContent = `${TIERS[state.tier].name} · Jour ${state.day}`;
+  elements.brandTier.textContent = TIERS[state.tier].name;
   updateResourceBar(economy);
   elements.pauseBtn.textContent = state.paused ? '▶' : 'Ⅱ';
   elements.pauseBtn.classList.toggle('active', state.paused);
@@ -450,11 +462,13 @@ function renderTopUI() {
   if (ui.view === 'world') {
     elements.canvasHint.textContent = 'Sélectionnez une créature-monde pour explorer, commercer ou lancer un assaut.';
   } else if (ui.selectedBuildId) {
-    elements.canvasHint.textContent = `${BUILDINGS[ui.selectedBuildId].name} sélectionné — cliquez sur une case compatible. Échap pour annuler.`;
+    elements.canvasHint.textContent = `${BUILDINGS[ui.selectedBuildId].name} sélectionné — ${touchInput ? 'touchez' : 'cliquez sur'} une case compatible. Échap pour annuler.`;
   } else if (state.combat && !state.combat.outcome) {
     elements.canvasHint.textContent = 'Les défenses tirent automatiquement. Les ennemis qui atteignent la carapace infligent des dégâts.';
   } else {
-    elements.canvasHint.textContent = 'Cliquez sur une case pour l’inspecter. Utilisez la molette pour zoomer.';
+    elements.canvasHint.textContent = touchInput
+      ? 'Touchez une case pour l’inspecter. Pincez à deux doigts pour zoomer.'
+      : 'Cliquez sur une case pour l’inspecter. Utilisez la molette pour zoomer.';
   }
 }
 
@@ -466,7 +480,7 @@ function renderBuildPanel() {
 
   return `<div class="section-block">
     ${selected ? `<div class="selected-build-banner">
-      <strong>${selected.icon} ${esc(selected.name)}</strong>
+      <strong>${buildingIcon(ui.selectedBuildId)} ${esc(selected.name)}</strong>
       <small>${esc(selected.description)}</small>
       <div class="inline-actions"><button class="small-button" data-action="cancel-build" type="button">Annuler la pose</button></div>
     </div>` : `<div class="info-card"><h3>Édifier sur la carapace</h3><p>Choisissez un bâtiment, puis cliquez sur une case. Le terrain et les voisins modifient les rendements.</p></div>`}
@@ -482,14 +496,14 @@ function renderBuildPanel() {
         const affordable = canAfford(state, cost);
         const count = countBuildings(state, id);
         return `<button class="building-card ${ui.selectedBuildId === id ? 'active' : ''}" data-action="select-build" data-id="${id}" type="button">
-          <span class="building-icon">${data.icon}</span>
+          <span class="building-icon">${buildingIcon(id)}</span>
           <span class="building-body">
             <span class="building-title-row"><strong>${esc(data.name)}</strong><small>${count > 0 ? `×${count}` : affordable ? 'Disponible' : 'À financer'}</small></span>
             <small>${esc(buildingProductionText(data))}</small>
             <span class="cost-row">${resourceListHtml(cost, state, true)}</span>
           </span>
         </button>`;
-      }).join('') || '<div class="empty-state"><div><div class="empty-symbol">⌂</div><p>Aucun bâtiment dans cette catégorie.</p></div></div>'}
+      }).join('') || `<div class="empty-state"><div><div class="empty-symbol">${buildingIcon('home')}</div><p>Aucun bâtiment dans cette catégorie.</p></div></div>`}
     </div>
 
     ${nextTier ? `<div class="info-card gold"><h3>Prochain âge : ${esc(nextTier.name)}</h3><p>${nextTier.unlocks.map((id) => BUILDINGS[id].name).join(' · ')}</p></div>` : ''}
@@ -497,6 +511,7 @@ function renderBuildPanel() {
 }
 
 function renderExpeditionPanel() {
+  const crewsBusy = Boolean(state.event || state.pendingRaid || state.combat);
   return `<div class="section-block">
     <div class="info-card"><h3>Partir au-delà du dos</h3><p>Les missions consomment des vivres. Les ports ouvrent la mer, les aérodromes le ciel et l’académie accélère les départs.</p></div>
 
@@ -505,7 +520,7 @@ function renderExpeditionPanel() {
         const data = EXPEDITIONS.find((item) => item.id === running.dataId);
         const percent = 100 * (1 - running.remaining / running.total);
         return `<article class="expedition-card">
-          <div class="card-header"><div><span class="card-symbol">${data.icon}</span><div><h4>${esc(data.name)}</h4><small>${data.mode === 'air' ? 'Voie aérienne' : data.mode === 'sea' ? 'Voie maritime' : 'Route mixte'}</small></div></div><small>${formatDuration(running.remaining)}</small></div>
+          <div class="card-header"><div><span class="card-symbol">${expeditionIcon(data.id)}</span><div><h4>${esc(data.name)}</h4><small>${data.mode === 'air' ? 'Voie aérienne' : data.mode === 'sea' ? 'Voie maritime' : 'Route mixte'}</small></div></div><small>${formatDuration(running.remaining)}</small></div>
           <div class="progress-track"><div class="progress-fill" style="width:${Math.min(100, percent)}%"></div></div>
           <div class="progress-labels"><span>En route</span><span>${Math.floor(percent)} %</span></div>
         </article>`;
@@ -517,13 +532,13 @@ function renderExpeditionPanel() {
         const available = expeditionAvailable(state, data);
         const foodCost = Math.max(8, Math.ceil(data.duration * 0.32));
         const capacity = state.expeditions.length < 2 + (countBuildings(state, 'academy') > 0 ? 1 : 0);
-        const canLaunch = available && capacity && state.resources.food >= foodCost;
+        const canLaunch = available && capacity && !crewsBusy && state.resources.food >= foodCost;
         return `<article class="expedition-card ${available ? '' : 'locked'}">
-          <div class="card-header"><div><span class="card-symbol">${data.icon}</span><div><h4>${esc(data.name)}</h4><small>${formatDuration(data.duration)} · danger ${Math.round(data.danger * 100)} %</small></div></div></div>
+          <div class="card-header"><div><span class="card-symbol">${expeditionIcon(data.id)}</span><div><h4>${esc(data.name)}</h4><small>${formatDuration(data.duration)} · danger ${Math.round(data.danger * 100)} %</small></div></div></div>
           <p class="card-description">${esc(data.description)}</p>
           <div class="cost-row"><span class="cost-chip ${state.resources.food < foodCost ? 'missing' : ''}">● ${foodCost}</span><span class="cost-chip">Requis : ${esc(requirementText(data.requirements))}</span></div>
-          <div class="cost-row">${Object.entries(data.reward).map(([resource, range]) => `<span class="cost-chip production-chip">${RESOURCE_META[resource]?.icon || '·'} ${range[0]}–${range[1]}</span>`).join('')}</div>
-          <button class="small-button ${canLaunch ? 'accent' : ''}" data-action="start-expedition" data-id="${data.id}" type="button" ${canLaunch ? '' : 'disabled'}>${available ? capacity ? 'Préparer le départ' : 'Équipes occupées' : 'Infrastructure manquante'}</button>
+          <div class="cost-row">${Object.entries(data.reward).map(([resource, range]) => `<span class="cost-chip production-chip"><span>${resourceIcon(resource)}</span>${range[0]}–${range[1]}</span>`).join('')}</div>
+          <button class="small-button ${canLaunch ? 'accent' : ''}" data-action="start-expedition" data-id="${data.id}" type="button" ${canLaunch ? '' : 'disabled'}>${crewsBusy ? 'Équipages mobilisés' : available ? capacity ? 'Préparer le départ' : 'Équipes occupées' : 'Infrastructure manquante'}</button>
         </article>`;
       }).join('')}
     </div>
@@ -567,7 +582,7 @@ function renderEvolutionPanel() {
       ${validation.ok ? '' : `<small>${esc(validation.reason)}</small>`}
     </article>` : `<div class="info-card gold"><h3>Forme elder accomplie</h3><p>${esc(state.turtleName)} porte désormais un royaume vivant. Continuez à fédérer ou dominer l’archipel.</p></div>`}
 
-    <div class="section-title-row"><h3>Chemin des âges</h3><small>5 formes</small></div>
+    <div class="section-title-row"><h3>Chemin des âges</h3><small>${TIERS.length} formes</small></div>
     <div class="tier-path">${path}</div>
   </div>`;
 }
@@ -592,7 +607,7 @@ function renderWorldPanel() {
       ${nodes.map((node) => {
         const relation = relationInfo(node.relation);
         return `<article class="node-card ${node.defeated ? 'locked' : ''}">
-          <div class="card-header"><div><span class="card-symbol">${node.icon}</span><div><h4>${esc(node.name)}</h4><small>${esc(node.faction)}</small></div></div><span class="node-relation ${relation.className}">${relation.label} ${node.relation > 0 ? '+' : ''}${node.relation}</span></div>
+          <div class="card-header"><div><span class="card-symbol">${worldIcon(node.kind)}</span><div><h4>${esc(node.name)}</h4><small>${esc(node.faction)}</small></div></div><span class="node-relation ${relation.className}">${relation.label} ${node.relation > 0 ? '+' : ''}${node.relation}</span></div>
           <p class="card-description">${esc(node.description)}</p>
           <div class="stat-pairs"><div class="stat-pair"><span>Puissance</span><strong>${Math.round(node.power)}</strong></div><div class="stat-pair"><span>Accès</span><strong>${node.altitude === 'air' ? 'Ciel' : 'Mer'}</strong></div></div>
           <button class="small-button" data-action="select-node" data-id="${node.id}" type="button" ${node.defeated ? 'disabled' : ''}>Observer ce monde</button>
@@ -609,7 +624,7 @@ function renderLegacyGoals() {
       ${LEGACY_GOALS.map((goal) => {
         const value = Math.max(0, goal.value(state));
         const done = value >= goal.target;
-        return `<article class="legacy-goal ${done ? 'done' : ''}"><span>${goal.icon}</span><div><strong>${esc(goal.title)}</strong><small>${done ? 'Accompli' : 'Objectif de mode libre'}</small></div><em>${formatNumber(Math.min(value, goal.target))}/${goal.target}</em></article>`;
+        return `<article class="legacy-goal ${done ? 'done' : ''}"><span>${goalIcon(goal.id)}</span><div><strong>${esc(goal.title)}</strong><small>${done ? 'Accompli' : 'Objectif de mode libre'}</small></div><em>${formatNumber(Math.min(value, goal.target))}/${goal.target}</em></article>`;
       }).join('')}
     </div>`;
 }
@@ -697,7 +712,7 @@ function renderEconomyInspector(economy) {
     <div class="stat-pair"><span>Défense mer</span><strong>${Math.round(economy.seaDefense)}</strong></div>
     <div class="stat-pair"><span>Défense air</span><strong>${Math.round(economy.airDefense)}</strong></div>
   </div>
-  <article class="info-card"><h3>Conseil du conseil</h3><p>${economy.net.food < 0 ? 'Les vivres diminuent. Ajoutez des fermes ou des réservoirs avant d’accueillir de nouveaux habitants.' : economy.workerEfficiency < 0.72 ? 'Les bâtiments manquent d’ouvriers. Construisez des maisons et laissez la population croître.' : economy.defense < 8 ? 'La cité reste vulnérable. Une tour de vigie limitera les dégâts du prochain raid.' : 'La cité est stable. Préparez la prochaine évolution ou ouvrez une route vers l’archipel.'}</p></article>`;
+  <article class="info-card"><h3>Conseil de la cité</h3><p>${economy.net.food < 0 ? 'Les vivres diminuent. Ajoutez des fermes ou des réservoirs avant d’accueillir de nouveaux habitants.' : economy.workerEfficiency < 0.72 ? 'Les bâtiments manquent d’ouvriers. Construisez des maisons et laissez la population croître.' : economy.defense < 8 ? 'La cité reste vulnérable. Une tour de vigie limitera les dégâts du prochain raid.' : 'La cité est stable. Préparez la prochaine évolution ou ouvrez une route vers l’archipel.'}</p></article>`;
 }
 
 function renderTileInspector(tile) {
@@ -711,7 +726,7 @@ function renderTileInspector(tile) {
     return `<article class="tile-card">
       <div class="tile-title"><div><h3>${esc(terrain.name)}</h3><small>Case ${tile.x + 1}, ${tile.y + 1}</small></div><span class="tile-symbol">◇</span></div>
       <p class="card-description">Case libre de la carapace. ${terrain.production ? `Affinité naturelle : ${RESOURCE_META[terrain.production]?.name || terrain.production}.` : 'Terrain polyvalent.'}</p>
-      <div class="detail-row"><span>Constructible</span><strong>${terrain.buildable || compatible ? 'Oui' : 'Non'}</strong></div>
+      <div class="detail-row"><span>Constructible</span><strong>${compatible ? 'Oui' : 'Non'}</strong></div>
       <div class="info-card"><h3>Constructions adaptées</h3><p>${compatible || 'Aucun bâtiment actuellement débloqué.'}</p></div>
       <button class="small-button" data-action="open-build-for-tile" type="button">Choisir un bâtiment</button>
     </article>`;
@@ -720,13 +735,14 @@ function renderTileInspector(tile) {
   const data = BUILDINGS[tile.building.id];
   const hp = tile.building.hp;
   return `<article class="tile-card">
-    <div class="tile-title"><div><h3>${data.icon} ${esc(data.name)}</h3><small>${esc(terrain.name)} · niveau ${tile.building.level}</small></div><span class="tile-symbol">${data.icon}</span></div>
+    <div class="tile-title"><div><h3>${buildingIcon(tile.building.id)} ${esc(data.name)}</h3><small>${esc(terrain.name)}${tile.building.level > 1 ? ` · niveau ${tile.building.level}` : ''}</small></div><span class="tile-symbol">${buildingIcon(tile.building.id)}</span></div>
     <p class="card-description">${esc(data.description)}</p>
     <div class="progress-track"><div class="progress-fill ${hp < 45 ? 'danger' : ''}" style="width:${Math.max(0, hp)}%"></div></div>
     <div class="progress-labels"><span>Intégrité</span><span>${Math.round(hp)} %</span></div>
     <div class="detail-row"><span>Production</span><strong>${esc(buildingProductionText(data))}</strong></div>
     <div class="detail-row"><span>Ouvriers</span><strong>${data.workers || 0}</strong></div>
-    ${data.defense ? `<div class="detail-row"><span>Défense</span><strong>${data.defense} · ${data.targets?.join(' + ') || 'toutes'}</strong></div>` : ''}
+    ${data.defense && data.targets?.length ? `<div class="detail-row"><span>Défense</span><strong>${data.defense} · ${data.targets.map((target) => target === 'air' ? 'Ciel' : 'Mer').join(' + ')}</strong></div>` : ''}
+    ${data.armor ? `<div class="detail-row"><span>Armure</span><strong>+${data.armor} vitalité max.</strong></div>` : ''}
     <div class="inline-actions">
       <button class="small-button" data-action="repair-building" type="button" ${hp >= 99.5 ? 'disabled' : ''}>Réparer</button>
       <button class="small-button danger" data-action="demolish-building" type="button">Démolir</button>
@@ -739,28 +755,28 @@ function renderWorldNodeInspector(node) {
   const seaAvailable = countBuildings(state, 'harbor') > 0;
   const airAvailable = countBuildings(state, 'skyDock') + countBuildings(state, 'aerie') > 0;
   const accessAvailable = node.altitude === 'air' ? airAvailable : seaAvailable;
+  const assaultMode = node.altitude === 'air' ? 'air' : 'sea';
   const cooldown = Math.max(0, Math.ceil(Number(node.cooldown) || 0));
   const crewsBusy = Boolean(state.event || state.pendingRaid || state.combat);
   const actionsLocked = node.defeated || !accessAvailable || cooldown > 0 || crewsBusy;
   const tradeCost = node.preferred === 'spirit' ? { spirit: 12 } : { food: 24 };
   return `<article class="node-card">
-    <div class="card-header"><div><span class="card-symbol">${node.icon}</span><div><h4>${esc(node.name)}</h4><small>${esc(node.faction)}</small></div></div><span class="node-relation ${relation.className}">${relation.label} ${node.relation > 0 ? '+' : ''}${node.relation}</span></div>
+    <div class="card-header"><div><span class="card-symbol">${worldIcon(node.kind)}</span><div><h4>${esc(node.name)}</h4><small>${esc(node.faction)}</small></div></div><span class="node-relation ${relation.className}">${relation.label} ${node.relation > 0 ? '+' : ''}${node.relation}</span></div>
     <p class="card-description">${esc(node.description)}</p>
     <div class="stat-pairs">
       <div class="stat-pair"><span>Puissance</span><strong>${Math.round(node.power)}</strong></div>
       <div class="stat-pair"><span>Milieu</span><strong>${node.altitude === 'air' ? 'Céleste' : 'Maritime'}</strong></div>
       <div class="stat-pair"><span>Visité</span><strong>${node.visited ? 'Oui' : 'Non'}</strong></div>
-      <div class="stat-pair"><span>État</span><strong>${node.defeated ? 'Vaincu' : cooldown > 0 ? `Retour dans ${cooldown} s` : accessAvailable ? 'Disponible' : node.altitude === 'air' ? 'Aérodrome requis' : 'Port requis'}</strong></div>
+      <div class="stat-pair"><span>État</span><strong>${node.defeated ? 'Vaincu' : cooldown > 0 ? `Retour dans ${cooldown} s` : accessAvailable ? 'Disponible' : node.altitude === 'air' ? 'Voie aérienne requise' : 'Port requis'}</strong></div>
     </div>
     <div class="section-title-row"><h3>Diplomatie</h3><small>Les choix persistent</small></div>
     <div class="inline-actions">
       <button class="small-button" data-action="explore-node" data-id="${node.id}" type="button" ${actionsLocked || state.resources.food < 18 ? 'disabled' : ''}>${cooldown > 0 ? `Équipage en route · ${cooldown} s` : node.visited ? 'Revisiter · ● 18' : 'Première approche · ● 18'}</button>
-      <button class="small-button" data-action="trade-node" data-id="${node.id}" type="button" ${actionsLocked || node.relation < -25 || !canAfford(state, tradeCost) ? 'disabled' : ''}>Échanger · ${resourceListHtml(tradeCost)}</button>
+      <button class="small-button" data-action="trade-node" data-id="${node.id}" type="button" ${actionsLocked || node.relation <= -25 || !canAfford(state, tradeCost) ? 'disabled' : ''}>Échanger · ${resourceListHtml(tradeCost)}</button>
     </div>
     <div class="section-title-row"><h3>Assaut</h3><small>Coût : ● 26 · ¤ 6</small></div>
     <div class="inline-actions">
-      <button class="small-button danger" data-action="attack-node" data-id="${node.id}" data-mode="sea" type="button" ${node.defeated || !seaAvailable || cooldown > 0 || crewsBusy ? 'disabled' : ''}>Voie maritime</button>
-      <button class="small-button danger" data-action="attack-node" data-id="${node.id}" data-mode="air" type="button" ${node.defeated || !airAvailable || cooldown > 0 || crewsBusy ? 'disabled' : ''}>Voie aérienne</button>
+      <button class="small-button danger" data-action="attack-node" data-id="${node.id}" type="button" ${node.defeated || !accessAvailable || cooldown > 0 || crewsBusy ? 'disabled' : ''}>${assaultMode === 'air' ? 'Assaut aérien' : 'Assaut maritime'}</button>
     </div>
   </article>`;
 }
@@ -890,15 +906,15 @@ function handleCommandAction(action, target) {
       renderPanels(true);
       break;
     case 'start-expedition':
-      handleResult(startExpedition(state, target.dataset.id), 'Expédition lancée.', 'build');
+      handleResult(startExpedition(state, target.dataset.id), null, 'build');
       break;
     case 'feed-turtle':
-      handleResult(feedTurtle(state), `${state.turtleName} a été nourrie.`, 'build');
+      handleResult(feedTurtle(state), null, 'build');
       break;
     case 'evolve': {
       const before = state.tier;
       const result = evolve(state);
-      if (handleResult(result, `${state.turtleName} atteint un nouvel âge !`, 'evolve') && state.tier !== before) {
+      if (handleResult(result, null, 'evolve') && state.tier !== before) {
         renderer.resetCamera();
         ui.selectedTile = null;
         saveGame(state, false);
@@ -917,7 +933,7 @@ function handleCommandAction(action, target) {
       audio.play('click');
       break;
     case 'manual-raid':
-      if (handleResult(startRaid(state, target.dataset.type), 'Raid déclenché.', 'alert')) setView('shell');
+      if (handleResult(startRaid(state, target.dataset.type), null, 'alert')) setView('shell');
       break;
     case 'manual-save':
       if (saveGame(state, false)) {
@@ -949,29 +965,29 @@ function handleInspectorAction(action, target) {
   if (!state) return;
   switch (action) {
     case 'claim-quest':
-      handleResult(claimQuest(state, target.dataset.id), 'Récompense reçue.', 'quest');
+      handleResult(claimQuest(state, target.dataset.id), null, 'quest');
       break;
     case 'open-build-for-tile':
       selectPanel('build');
       elements.commandPanel.classList.add('mobile-open');
       break;
     case 'repair-building':
-      if (ui.selectedTile) handleResult(repairBuilding(state, ui.selectedTile.x, ui.selectedTile.y), 'Bâtiment réparé.', 'build');
+      if (ui.selectedTile) handleResult(repairBuilding(state, ui.selectedTile.x, ui.selectedTile.y), null, 'build');
       break;
     case 'demolish-building':
       if (ui.selectedTile && window.confirm('Démolir ce bâtiment et récupérer 40 % des matériaux ?')) {
-        handleResult(demolishBuilding(state, ui.selectedTile.x, ui.selectedTile.y), 'Bâtiment démoli.', 'build');
+        handleResult(demolishBuilding(state, ui.selectedTile.x, ui.selectedTile.y), null, 'build');
       }
       break;
     case 'explore-node':
-      handleResult(exploreNode(state, target.dataset.id), 'Mission d’approche réussie.', 'quest');
+      handleResult(exploreNode(state, target.dataset.id), null, 'quest');
       break;
     case 'trade-node':
-      handleResult(tradeWithNode(state, target.dataset.id), 'Échange conclu.', 'quest');
+      handleResult(tradeWithNode(state, target.dataset.id), null, 'quest');
       break;
     case 'attack-node': {
-      const result = attackNode(state, target.dataset.id, target.dataset.mode);
-      if (handleResult(result, 'L’assaut est lancé : l’ennemi contre-attaque.', 'alert')) setView('shell');
+      const result = attackNode(state, target.dataset.id);
+      if (handleResult(result, null, 'alert')) setView('shell');
       break;
     }
     default:
@@ -1019,8 +1035,21 @@ function importSave() {
   input.click();
 }
 
+function touchPoint(event) {
+  const rect = elements.gameCanvas.getBoundingClientRect();
+  return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+}
+
+function touchMidpoint(first, second) {
+  return { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
+}
+
+function touchSpan(first, second) {
+  return Math.max(1, Math.hypot(second.x - first.x, second.y - first.y));
+}
+
 function handleCanvasClick(event) {
-  if (!state || state.event) return;
+  if (!state || state.event || suppressTap) return;
   audio.ensure();
   if (ui.view === 'world') {
     const nodeId = renderer.hitTestWorldNode(event.clientX, event.clientY);
@@ -1046,7 +1075,7 @@ function handleCanvasClick(event) {
       audio.play('error');
     } else {
       const result = placeBuilding(state, ui.selectedBuildId, tilePosition.x, tilePosition.y);
-      handleResult(result, result.ok ? `${BUILDINGS[ui.selectedBuildId].name} construit.` : null, result.ok ? 'build' : 'error');
+      handleResult(result, null, result.ok ? 'build' : 'error');
     }
   } else {
     audio.play('click');
@@ -1103,7 +1132,7 @@ function activateSelectedTile() {
   }
   const id = ui.selectedBuildId;
   const result = placeBuilding(state, id, ui.selectedTile.x, ui.selectedTile.y);
-  if (handleResult(result, result.ok ? `${BUILDINGS[id].name} construit.` : null, result.ok ? 'build' : 'error')) {
+  if (handleResult(result, null, result.ok ? 'build' : 'error')) {
     announceSelectedTile(`${BUILDINGS[id].name} construit.`);
   } else {
     announce(result.reason || 'Construction impossible.');
@@ -1227,8 +1256,59 @@ function bindEvents() {
     if (target) handleInspectorAction(target.dataset.action, target);
   });
 
+  elements.gameCanvas.addEventListener('pointerdown', (event) => {
+    if (!state || !renderer || event.pointerType !== 'touch' || ui.view !== 'shell') return;
+    touchPoints.set(event.pointerId, touchPoint(event));
+    try { elements.gameCanvas.setPointerCapture(event.pointerId); } catch { /* synthetic pointer */ }
+    if (touchPoints.size !== 2) return;
+    const [first, second] = [...touchPoints.values()];
+    const midpoint = touchMidpoint(first, second);
+    pinchGesture = {
+      startDistance: touchSpan(first, second),
+      startMidX: midpoint.x,
+      startMidY: midpoint.y,
+      startZoom: renderer.camera.zoom,
+      startOriginX: renderer.layout?.originX ?? renderer.width * 0.5,
+      startOriginY: renderer.layout?.originY ?? renderer.height * 0.42,
+    };
+    window.clearTimeout(suppressTapTimer);
+    suppressTap = true;
+  });
+
+  const endTouchPointer = (event) => {
+    if (event.pointerType !== 'touch') return;
+    touchPoints.delete(event.pointerId);
+    if (touchPoints.size < 2) pinchGesture = null;
+    if (touchPoints.size === 0) {
+      window.clearTimeout(suppressTapTimer);
+      suppressTapTimer = window.setTimeout(() => { suppressTap = false; }, 350);
+    }
+  };
+  window.addEventListener('pointerup', endTouchPointer);
+  window.addEventListener('pointercancel', endTouchPointer);
+
   elements.gameCanvas.addEventListener('pointermove', (event) => {
-    if (!state) return;
+    if (!state || !renderer) return;
+    if (event.pointerType === 'touch' && touchPoints.has(event.pointerId)) {
+      touchPoints.set(event.pointerId, touchPoint(event));
+      if (pinchGesture) {
+        const [first, second] = [...touchPoints.values()];
+        if (first && second) {
+          const midpoint = touchMidpoint(first, second);
+          renderer.applyPinch({
+            scale: touchSpan(first, second) / pinchGesture.startDistance,
+            startZoom: pinchGesture.startZoom,
+            startOriginX: pinchGesture.startOriginX,
+            startOriginY: pinchGesture.startOriginY,
+            startMidX: pinchGesture.startMidX,
+            startMidY: pinchGesture.startMidY,
+            midX: midpoint.x,
+            midY: midpoint.y,
+          });
+          return;
+        }
+      }
+    }
     renderer.updateHover(state, event.clientX, event.clientY);
   });
   elements.gameCanvas.addEventListener('pointerleave', () => {
@@ -1256,7 +1336,7 @@ function bindEvents() {
     event.preventDefault();
     renderer?.setZoom(event.deltaY);
   }, { passive: false });
-  elements.gameCanvas.addEventListener('dblclick', () => renderer?.resetCamera());
+  elements.gameCanvas.addEventListener('dblclick', () => { if (!suppressTap) renderer?.resetCamera(); });
 
   elements.shellViewBtn.addEventListener('click', () => setView('shell'));
   elements.worldViewBtn.addEventListener('click', () => setView('world'));
@@ -1313,7 +1393,7 @@ function bindEvents() {
     const button = event.target.closest('[data-choice]');
     if (!button || !state?.event) return;
     const result = resolveEvent(state, Number(button.dataset.choice));
-    handleResult(result, result.ok ? 'Décision appliquée.' : null, result.ok ? 'quest' : 'error');
+    handleResult(result, null, result.ok ? 'quest' : 'error');
   });
 
   elements.closeCombatBtn.addEventListener('click', () => {
@@ -1332,6 +1412,9 @@ function bindEvents() {
     elements.inspectorPanel.classList.add('mobile-open');
     elements.commandPanel.classList.remove('mobile-open');
   });
+  elements.zoomOutBtn.addEventListener('click', () => renderer?.setZoom(1));
+  elements.zoomInBtn.addEventListener('click', () => renderer?.setZoom(-1));
+  elements.recenterBtn.addEventListener('click', () => renderer?.recenter());
   elements.closeCommandMobile.addEventListener('click', () => elements.commandPanel.classList.remove('mobile-open'));
   elements.closeInspectorMobile.addEventListener('click', () => elements.inspectorPanel.classList.remove('mobile-open'));
 

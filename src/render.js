@@ -1,5 +1,6 @@
 import { BUILDINGS, ENEMY_TYPES, MAX_GRID, TERRAIN, TIERS } from './data.js';
-import { activeBounds, clamp, getTile, isTileActive, lerp } from './state.js';
+import { enemyIconPath } from './icons.js';
+import { activeBounds, clamp, getTile, isTileActive, lerp, validateBuild } from './state.js';
 
 const TERRAIN_COLORS = {
   grass: { top: '#4c8a65', side: '#275541', accent: '#78b47f' },
@@ -15,6 +16,18 @@ const CATEGORY_COLORS = {
   defense: '#a8796b', military: '#ad735f', industry: '#8d8e9d', science: '#7f92ba',
   spirit: '#9a82c0', monument: '#d4c279',
 };
+
+// Sprite height in local building space, used to keep damage bars above each roof.
+const BUILDING_TOP = {
+  home: -30, farm: -27, lumberCamp: -24, quarry: -25, well: -25,
+  watchtower: -38, market: -33, harbor: -30, palisade: -23, healer: -30,
+  workshop: -29, ballista: -27, skyDock: -45, reservoir: -25, academy: -30,
+  temple: -40, aerie: -29, stoneWall: -23, greatMarket: -33, worldRoot: -44,
+  citadel: -50, stormCannon: -35, grandSanctuary: -49, worldGate: -33,
+};
+
+const MIN_ZOOM = 0.68;
+const MAX_ZOOM = 1.55;
 
 function roundedRect(ctx, x, y, width, height, radius) {
   const r = Math.min(radius, width / 2, height / 2);
@@ -99,7 +112,24 @@ export class TurtleRenderer {
   }
 
   setZoom(delta) {
-    this.camera.zoom = clamp(this.camera.zoom * (delta > 0 ? 0.92 : 1.08), 0.68, 1.55);
+    this.camera.zoom = clamp(this.camera.zoom * (delta > 0 ? 0.92 : 1.08), MIN_ZOOM, MAX_ZOOM);
+  }
+
+  applyPinch({ scale, startZoom, startOriginX, startOriginY, startMidX, startMidY, midX, midY }) {
+    if (!this.layout) return;
+    const newZoom = clamp(startZoom * scale, MIN_ZOOM, MAX_ZOOM);
+    const applied = newZoom / startZoom;
+    const originX = midX - (startMidX - startOriginX) * applied;
+    const originY = midY - (startMidY - startOriginY) * applied;
+    const baseY = this.height * 0.42 - (this.layout.size - 1) * this.layout.tileH / 2;
+    this.camera.zoom = newZoom;
+    this.camera.panX = clamp(originX - this.width * 0.5, -this.width * 0.45, this.width * 0.45);
+    this.camera.panY = clamp(originY - baseY, -this.height * 0.35, this.height * 0.35);
+  }
+
+  recenter() {
+    this.camera.panX = 0;
+    this.camera.panY = 0;
   }
 
   resetCamera() {
@@ -109,9 +139,9 @@ export class TurtleRenderer {
   hitTestTile(state, clientX, clientY) {
     this.setPointer(clientX, clientY);
     if (this.mode !== 'shell' || !this.layout) return null;
-    const { originX, originY, tileW, tileH, start, size, zoom } = this.layout;
+    const { originX, originY, tileW, tileH, start, size, zoom, bob } = this.layout;
     const worldX = (this.pointer.x - originX) / zoom;
-    const worldY = (this.pointer.y - originY) / zoom;
+    const worldY = (this.pointer.y - originY - (bob || 0)) / zoom;
     const localX = (worldY / (tileH / 2) + worldX / (tileW / 2)) / 2;
     const localY = (worldY / (tileH / 2) - worldX / (tileW / 2)) / 2;
     const rx = Math.round(localX);
@@ -245,24 +275,31 @@ export class TurtleRenderer {
 
   shellLayout(state) {
     const bounds = activeBounds(state);
-    const maxW = Math.max(28, Math.min(78, (this.width * 0.86) / Math.max(6, bounds.size)));
-    const maxH = Math.max(16, maxW * 0.50);
+    // Keep the whole silhouette, head and flippers included, inside the canvas at every age.
+    const size = Math.max(6, bounds.size);
+    const widthCap = (this.width * 0.72) / size;
+    // The shell is 1.26 times the grid height and the grid is 2:1, so short viewports also cap the tile.
+    const heightCap = (this.height * 0.60) / (size * 0.63);
+    const maxW = clamp(Math.min(78, widthCap, heightCap), 12, 78);
+    const maxH = maxW * 0.50;
     const zoom = this.camera.zoom;
-    const gridHeight = (bounds.size - 1) * maxH + maxH;
+    const gridHeight = (size - 1) * maxH + maxH;
+    // The idle bob lives in the layout so hovering and tapping stay aligned with the drawn tiles.
+    const bob = Math.sin(this.time * 0.82) * 4;
     const originX = this.width * 0.50 + this.camera.panX;
-    const originY = this.height * 0.42 - (bounds.size - 1) * maxH / 2 + this.camera.panY;
-    this.layout = { start: bounds.start, end: bounds.end, size: bounds.size, tileW: maxW, tileH: maxH, originX, originY, gridHeight, zoom };
+    const originY = this.height * 0.42 - (size - 1) * maxH / 2 + this.camera.panY;
+    this.layout = { start: bounds.start, end: bounds.end, size: bounds.size, tileW: maxW, tileH: maxH, originX, originY, gridHeight, zoom, bob };
     return this.layout;
   }
 
   tilePosition(x, y) {
     if (!this.layout) return { x: 0, y: 0 };
-    const { start, tileW, tileH, originX, originY, zoom } = this.layout;
+    const { start, tileW, tileH, originX, originY, zoom, bob } = this.layout;
     const rx = x - start;
     const ry = y - start;
     return {
       x: originX + (rx - ry) * tileW / 2 * zoom,
-      y: originY + (rx + ry) * tileH / 2 * zoom,
+      y: originY + (bob || 0) + (rx + ry) * tileH / 2 * zoom,
     };
   }
 
@@ -275,20 +312,19 @@ export class TurtleRenderer {
 
     const gridWidth = size * tileW * zoom;
     const gridHeight = size * tileH * zoom;
-    const centerX = this.width * 0.5 + this.camera.panX;
-    const centerY = this.height * 0.42 + tileH * zoom * 0.1 + this.camera.panY;
+    // One shared centre for the shell, the grid and the raid ring.
+    const centerX = layout.originX;
+    const centerY = layout.originY + layout.bob + (size - 1) * tileH * zoom / 2;
     const shellW = gridWidth * 0.94;
     const shellH = gridHeight * 1.26;
-    const bob = Math.sin(this.time * 0.82) * 4;
 
     drawShadow(ctx, centerX - shellW * 0.04, centerY + shellH * 0.43 + 26, shellW * 0.68, shellH * 0.25, 0.30);
-    this.drawTurtleBody(state, centerX, centerY + bob, shellW, shellH);
+    this.drawTurtleBody(state, centerX, centerY, shellW, shellH);
 
     const tiles = [];
     for (let y = layout.start; y <= layout.end; y += 1) {
       for (let x = layout.start; x <= layout.end; x += 1) {
         const position = this.tilePosition(x, y);
-        position.y += bob;
         this.tileCenters.set(`${x},${y}`, position);
         tiles.push({ tile: getTile(state, x, y), position, order: x + y });
       }
@@ -296,12 +332,15 @@ export class TurtleRenderer {
     tiles.sort((a, b) => a.order - b.order || a.tile.x - b.tile.x);
 
     for (const item of tiles) this.drawTile(state, item.tile, item.position.x, item.position.y, tileW * zoom, tileH * zoom, ui);
+    // Buildings and standing props share one depth order: a tree in front of a house hides its base.
     for (const item of tiles) {
       if (item.tile.building) this.drawBuilding(state, item.tile, item.position.x, item.position.y, tileW * zoom, tileH * zoom);
+      else this.drawTileProps(item.tile, item.position.x, item.position.y, tileW * zoom, tileH * zoom);
     }
 
-    if (state.combat) this.drawCombat(state, centerX, centerY + bob, shellW, shellH);
+    // The name plate is scenery for the shell: raiders arriving from the bottom pass in front of it.
     this.drawShellLabels(state, centerX, centerY, shellW, shellH);
+    if (state.combat) this.drawCombat(state, centerX, centerY, shellW, shellH);
   }
 
   drawTurtleBody(state, cx, cy, shellW, shellH) {
@@ -419,27 +458,13 @@ export class TurtleRenderer {
     }
     ctx.globalAlpha = 1;
 
-    if (tile.terrain === 'forest' && !tile.building) {
-      this.drawMiniTree(x - tileW * 0.13, y - tileH * 0.10, tileW * 0.14);
-      this.drawMiniTree(x + tileW * 0.10, y, tileW * 0.11);
-    } else if (tile.terrain === 'rock' && !tile.building) {
-      this.drawRock(x, y, tileW * 0.12);
-    } else if (tile.terrain === 'spring' && !tile.building) {
-      ctx.fillStyle = 'rgba(116, 213, 205, .75)';
-      ctx.beginPath();
-      ctx.ellipse(x, y, tileW * 0.17, tileH * 0.18, 0, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (tile.terrain === 'ridge' && !tile.building) {
-      this.drawRock(x - tileW * 0.08, y, tileW * 0.17);
-      this.drawRock(x + tileW * 0.09, y + tileH * 0.03, tileW * 0.12);
-    }
+    this.drawTerrainSurface(tile, x, y, tileW, tileH);
 
     if (selected || hovered) {
       let stroke = selected ? '#f1d589' : 'rgba(233,246,224,.72)';
       if (placement) {
-        const data = BUILDINGS[ui.selectedBuildId];
-        const terrainOk = data?.allowed?.includes(tile.terrain) && !tile.building;
-        stroke = terrainOk ? '#bce791' : '#e4877f';
+        // The preview follows the real placement rules, not just the terrain filter.
+        stroke = validateBuild(state, ui.selectedBuildId, tile.x, tile.y).ok ? '#bce791' : '#e4877f';
       }
       ctx.strokeStyle = stroke;
       ctx.lineWidth = selected ? 2.5 : 1.8;
@@ -461,6 +486,89 @@ export class TurtleRenderer {
       ctx.closePath();
       ctx.stroke();
     }
+  }
+
+  drawTerrainSurface(tile, x, y, tileW, tileH) {
+    const ctx = this.ctx;
+    const seed = (tile.x * 13 + tile.y * 29) % 5;
+    if (tile.terrain === 'fertile') {
+      // Furrows read as worked soil even before a farm is built.
+      ctx.save();
+      ctx.lineCap = 'round';
+      for (let row = -1; row <= 1; row += 1) {
+        const offset = row * tileW * 0.13 + (seed - 2) * tileW * 0.012;
+        ctx.strokeStyle = `rgba(198, 188, 122, ${0.30 - Math.abs(row) * 0.06})`;
+        ctx.lineWidth = Math.max(0.9, tileW * 0.016);
+        ctx.beginPath();
+        ctx.moveTo(x - tileW * 0.24 + offset, y + tileH * 0.12);
+        ctx.lineTo(x - tileW * 0.02 + offset, y - tileH * 0.06);
+        ctx.stroke();
+      }
+      ctx.restore();
+    } else if (tile.terrain === 'spring') {
+      ctx.fillStyle = 'rgba(14, 55, 60, .55)';
+      ctx.beginPath();
+      ctx.ellipse(x, y, tileW * 0.23, tileH * 0.24, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(112, 208, 201, .78)';
+      ctx.beginPath();
+      ctx.ellipse(x, y, tileW * 0.17, tileH * 0.18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(200, 246, 234, .45)';
+      ctx.lineWidth = Math.max(0.8, tileW * 0.012);
+      ctx.beginPath();
+      ctx.ellipse(x, y, tileW * 0.18, tileH * 0.19, 0, Math.PI * 0.85, Math.PI * 1.85);
+      ctx.stroke();
+    } else if (tile.terrain === 'grass' && !tile.building) {
+      ctx.strokeStyle = 'rgba(108, 168, 120, .38)';
+      ctx.lineWidth = Math.max(0.8, tileW * 0.012);
+      for (let blade = 0; blade < 2; blade += 1) {
+        const bx = x + ((seed + blade * 3) % 5 - 2) * tileW * 0.07;
+        const by = y + ((seed + blade) % 3 - 1) * tileH * 0.09;
+        ctx.beginPath();
+        ctx.moveTo(bx, by + tileH * 0.05);
+        ctx.lineTo(bx + tileW * 0.02, by - tileH * 0.04);
+        ctx.stroke();
+      }
+    }
+  }
+
+  drawTileProps(tile, x, y, tileW, tileH) {
+    if (tile.building) return;
+    const seed = (tile.x * 37 + tile.y * 53) % 5;
+    if (tile.terrain === 'forest') {
+      const trees = [
+        { dx: -0.15, dy: -0.03, size: 0.20 },
+        { dx: 0.04, dy: 0.03, size: 0.15 },
+        { dx: 0.15, dy: -0.06, size: 0.12 },
+      ];
+      for (let index = 0; index < trees.length; index += 1) {
+        const tree = trees[index];
+        const jitter = ((seed + index * 2) % 3 - 1) * 0.014;
+        const tx = x + (tree.dx + jitter) * tileW;
+        const ty = y + (tree.dy + jitter) * tileH;
+        const size = tileW * tree.size;
+        this.drawPropShadow(tx, ty + size * 0.40, size * 0.36, size * 0.15);
+        this.drawMiniTree(tx, ty, size);
+      }
+    } else if (tile.terrain === 'rock') {
+      const size = tileW * 0.19;
+      this.drawPropShadow(x + tileW * 0.03, y + tileH * 0.17, size * 0.45, size * 0.18);
+      this.drawRock(x + tileW * 0.02, y, size);
+    } else if (tile.terrain === 'ridge') {
+      const size = tileW * 0.20;
+      this.drawPropShadow(x - tileW * 0.03, y + tileH * 0.20, size * 0.62, size * 0.20);
+      this.drawRock(x - tileW * 0.09, y, size);
+      this.drawRock(x + tileW * 0.10, y + tileH * 0.03, size * 0.7);
+    }
+  }
+
+  drawPropShadow(x, y, rx, ry) {
+    const ctx = this.ctx;
+    ctx.fillStyle = 'rgba(8, 24, 22, .28)';
+    ctx.beginPath();
+    ctx.ellipse(x, y, Math.max(1, rx), Math.max(0.8, ry), 0, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   drawMiniTree(x, y, size) {
@@ -506,7 +614,7 @@ export class TurtleRenderer {
     const ctx = this.ctx;
     const data = BUILDINGS[tile.building.id];
     if (!data) return;
-    const scale = clamp(tileW / 64, 0.55, 1.22);
+    const scale = clamp(tileW / 64, 0.28, 1.22);
     const hp = clamp(tile.building.hp / 100, 0, 1);
     const baseY = y - tileH * 0.08;
     const color = CATEGORY_COLORS[data.category] || '#b8a982';
@@ -545,12 +653,13 @@ export class TurtleRenderer {
     else this.drawIconBuilding(data.icon, color);
 
     if (hp < 0.99) {
+      const barTop = BUILDING_TOP[id] ?? -32;
       ctx.globalAlpha = 1;
       ctx.fillStyle = 'rgba(10,18,20,.78)';
-      roundedRect(ctx, -19, -35, 38, 5, 2.5);
+      roundedRect(ctx, -19, barTop, 38, 5, 2.5);
       ctx.fill();
       ctx.fillStyle = hp > 0.5 ? '#a6ce78' : '#d47f6d';
-      roundedRect(ctx, -18, -34, 36 * hp, 3, 1.5);
+      roundedRect(ctx, -18, barTop + 1, 36 * hp, 3, 1.5);
       ctx.fill();
     }
     ctx.restore();
@@ -943,20 +1052,40 @@ export class TurtleRenderer {
   drawCombat(state, centerX, centerY, shellW, shellH) {
     const ctx = this.ctx;
     const combat = state.combat;
-    const radiusX = shellW * 0.65;
-    const radiusY = shellH * 0.55;
+    // Raids travel between an outer ring and the shell rim, which is where they actually breach.
+    const rimX = shellW * 0.50;
+    const rimY = shellH * 0.46;
+    const outerX = shellW * 0.74;
+    const outerY = shellH * 0.58;
+    const spawnDistance = 1.20;
+    const breachDistance = 0.14;
     this.enemyPositions.clear();
 
     for (const enemy of combat.enemies) {
       if (enemy.hp <= 0 && enemy.counted) continue;
       const wobble = Math.sin(this.time * 3 + enemy.angle * 2) * 5;
-      const x = centerX + Math.cos(enemy.angle) * enemy.distance * radiusX;
-      const y = centerY + Math.sin(enemy.angle) * enemy.distance * radiusY + (enemy.type === 'air' ? -35 + wobble : wobble * 0.25);
+      const approach = clamp((enemy.distance - breachDistance) / (spawnDistance - breachDistance), 0, 1);
+      const radiusX = rimX + (outerX - rimX) * approach;
+      const radiusY = rimY + (outerY - rimY) * approach;
+      const lane = (enemy.laneOffset || 0) * shellW * 0.10;
+      const tangentX = -Math.sin(enemy.angle) * radiusX;
+      const tangentY = Math.cos(enemy.angle) * radiusY * 0.6;
+      const tangentLength = Math.hypot(tangentX, tangentY) || 1;
+      const x = centerX + Math.cos(enemy.angle) * radiusX + tangentX / tangentLength * lane;
+      const y = centerY + Math.sin(enemy.angle) * radiusY + tangentY / tangentLength * lane
+        + (enemy.type === 'air' ? -35 + wobble : wobble * 0.25);
       this.enemyPositions.set(enemy.uid, { x, y });
       const base = ENEMY_TYPES[enemy.id];
-      const scale = clamp(0.72 + (1.25 - enemy.distance) * 0.32, 0.65, 1.15);
+      const scale = clamp(0.70 + (1 - approach) * 0.36, 0.70, 1.06);
 
-      if (enemy.type === 'air') drawShadow(ctx, x, y + 35, 28 * scale, 8 * scale, 0.18);
+      if (enemy.type === 'air') {
+        drawShadow(ctx, x, y + 35, 28 * scale, 8 * scale, 0.18);
+      } else {
+        ctx.fillStyle = 'rgba(198, 236, 231, .20)';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 13 * scale, 24 * scale, 6 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.save();
       ctx.translate(x, y);
       ctx.scale(scale, scale);
@@ -964,11 +1093,24 @@ export class TurtleRenderer {
       ctx.fillStyle = enemy.hitFlash > 0 ? '#f3d7bd' : enemy.type === 'air' ? '#b88b78' : '#8f775a';
       roundedRect(ctx, -22, -14, 44, 28, 8);
       ctx.fill();
-      ctx.fillStyle = '#2b2524';
-      ctx.font = 'bold 22px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(base.icon, 0, 1);
+      const engraved = enemyIconPath(enemy.id);
+      if (engraved) {
+        ctx.save();
+        ctx.translate(-9.6, -9.6);
+        ctx.scale(0.8, 0.8);
+        ctx.strokeStyle = '#2b2524';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke(new Path2D(engraved));
+        ctx.restore();
+      } else {
+        ctx.fillStyle = '#2b2524';
+        ctx.font = 'bold 22px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(base.icon, 0, 1);
+      }
       ctx.restore();
 
       if (enemy.hp > 0) {
@@ -1001,36 +1143,33 @@ export class TurtleRenderer {
       ctx.fill();
     }
 
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.font = '700 13px system-ui';
-    ctx.fillStyle = combat.type === 'air' ? '#d9e7ef' : '#d9dfc7';
-    const alive = combat.enemies.filter((enemy) => enemy.hp > 0).length;
-    roundedRect(ctx, centerX - 92, 20, 184, 30, 15);
-    ctx.fillStyle = 'rgba(7, 21, 27, .72)';
-    ctx.fill();
-    ctx.fillStyle = '#f0e6c6';
-    ctx.fillText(`${combat.type === 'air' ? 'RAID AÉRIEN' : 'RAID MARITIME'} · ${alive} cible${alive > 1 ? 's' : ''}`, centerX, 40);
-    ctx.restore();
   }
 
   drawShellLabels(state, centerX, centerY, shellW, shellH) {
     const ctx = this.ctx;
     ctx.save();
     ctx.textAlign = 'center';
-    const y = Math.min(this.height - 36, centerY + shellH * 0.57);
-    ctx.fillStyle = 'rgba(6, 22, 26, .72)';
-    roundedRect(ctx, centerX - 135, y - 18, 270, 34, 17);
+    const width = Math.min(270, Math.max(180, this.width - 24));
+    const boxX = clamp(centerX - width / 2, 12, this.width - width - 12);
+    const y = Math.min(this.height - 22, Math.max(30, centerY + shellH * 0.61));
+    ctx.fillStyle = 'rgba(4, 16, 20, .78)';
+    roundedRect(ctx, boxX, y - 17, width, 34, 2);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(203, 189, 143, .3)';
+    ctx.lineWidth = 1;
+    roundedRect(ctx, boxX + 0.5, y - 16.5, width - 1, 33, 2);
+    ctx.stroke();
     ctx.fillStyle = '#e8e0c2';
-    ctx.font = '700 14px system-ui';
-    ctx.fillText(`${state.turtleName} · ${TIERS[state.tier].name}`, centerX, y + 4);
+    ctx.font = '600 14px "Palatino Linotype", Palatino, Georgia, serif';
+    ctx.fillText(`${state.turtleName} · ${TIERS[state.tier].name}`, boxX + width / 2, y + 5);
     ctx.restore();
   }
 
   drawWorldMap(state, ui) {
     const ctx = this.ctx;
     this.nodePositions.clear();
+    // Creatures and the player turtle keep the same relative size on every screen.
+    const mapScale = clamp(Math.min(this.width / 960, this.height / 640), 0.55, 1.15);
     const cx = this.width * 0.5;
     const cy = this.height * 0.51;
     const rx = this.width * 0.43;
@@ -1055,9 +1194,11 @@ export class TurtleRenderer {
     for (const node of state.worldNodes) {
       if (!node.discovered) continue;
       const drift = Math.sin(this.time * 0.26 + node.angle * 3) * 0.012;
-      const x = cx + Math.cos(node.angle + drift) * node.distance * rx;
-      const y = cy + Math.sin(node.angle + drift) * node.distance * ry + (node.altitude === 'air' ? Math.sin(this.time + node.angle) * 10 - 18 : 0);
-      const radius = node.kind === 'island' ? 24 : 29;
+      // Worlds sit on a ring outside the player turtle so no name collides with the city label.
+      const radial = 0.36 + node.distance * 0.64;
+      const x = cx + Math.cos(node.angle + drift) * radial * rx;
+      const y = cy + Math.sin(node.angle + drift) * radial * ry + (node.altitude === 'air' ? Math.sin(this.time + node.angle) * 10 - 18 : 0);
+      const radius = (node.kind === 'island' ? 24 : 29) * mapScale;
       this.nodePositions.set(node.id, { x, y, radius });
       const selected = ui.selectedWorldNodeId === node.id;
       const hovered = this.hoverNodeId === node.id;
@@ -1072,22 +1213,18 @@ export class TurtleRenderer {
         ctx.stroke();
         ctx.setLineDash([]);
       }
-      this.drawWorldCreature(node, x, y, radius, selected, hovered);
+      this.drawWorldCreature(node, x, y, radius, selected, hovered, mapScale);
     }
 
-    this.drawPlayerTurtleMap(state, cx, cy);
-
-    ctx.fillStyle = 'rgba(232, 239, 220, .72)';
-    ctx.font = '600 12px system-ui';
-    ctx.textAlign = 'right';
-    ctx.fillText('ARCHIPEL DES CRÉATURES-MONDES', this.width - 24, 34);
+    this.drawPlayerTurtleMap(state, cx, cy, mapScale);
   }
 
-  drawPlayerTurtleMap(state, x, y) {
+  drawPlayerTurtleMap(state, x, y, scale = 1) {
     const ctx = this.ctx;
-    drawShadow(ctx, x, y + 28, 65, 18, 0.28);
+    drawShadow(ctx, x, y + 28 * scale, 65 * scale, 18 * scale, 0.28);
     ctx.save();
     ctx.translate(x, y);
+    ctx.scale(scale, scale);
     ctx.fillStyle = '#507b63';
     ctx.beginPath();
     ctx.ellipse(0, 0, 56, 36, 0, 0, Math.PI * 2);
@@ -1112,22 +1249,23 @@ export class TurtleRenderer {
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#f1e7c8';
-    ctx.font = '700 13px system-ui';
-    ctx.fillText(state.cityName, x, y + 56);
-    ctx.font = '500 11px system-ui';
+    ctx.font = `700 ${Math.max(10, Math.round(13 * scale))}px system-ui`;
+    ctx.fillText(state.cityName, x, y + 56 * scale);
+    ctx.font = `500 ${Math.max(9, Math.round(11 * scale))}px system-ui`;
     ctx.fillStyle = 'rgba(241,231,200,.72)';
-    ctx.fillText(state.turtleName, x, y + 71);
+    ctx.fillText(state.turtleName, x, y + 71 * scale);
   }
 
-  drawWorldCreature(node, x, y, radius, selected, hovered) {
+  drawWorldCreature(node, x, y, radius, selected, hovered, mapScale = 1) {
     const ctx = this.ctx;
     const relationColor = node.relation >= 25 ? '#7bb78d' : node.relation <= -25 ? '#c46f65' : '#c6b77e';
     if (node.altitude === 'air') drawShadow(ctx, x, y + radius + 15, radius * 1.1, radius * 0.30, 0.16);
+    else drawShadow(ctx, x, y + radius * 0.74, radius * 1.02, radius * 0.30, 0.14);
     if (selected || hovered) {
       ctx.strokeStyle = selected ? '#f1d589' : '#d9e7d8';
       ctx.lineWidth = selected ? 3 : 2;
       ctx.beginPath();
-      ctx.arc(x, y, radius + 8 + Math.sin(this.time * 3) * 2, 0, Math.PI * 2);
+      ctx.arc(x, y, radius + 8 * mapScale + Math.sin(this.time * 3) * 2, 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -1213,12 +1351,12 @@ export class TurtleRenderer {
 
     ctx.fillStyle = relationColor;
     ctx.beginPath();
-    ctx.arc(x + radius * 0.72, y - radius * 0.62, 5, 0, Math.PI * 2);
+    ctx.arc(x + radius * 0.72, y - radius * 0.62, Math.max(3.5, 5 * mapScale), 0, Math.PI * 2);
     ctx.fill();
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ede5cb';
-    ctx.font = '700 11px system-ui';
-    ctx.fillText(node.name, x, y + radius + 18);
+    ctx.font = `700 ${Math.max(10, Math.round(11 * mapScale))}px system-ui`;
+    ctx.fillText(node.name, x, y + radius + 18 * mapScale);
   }
 
   drawVignette() {
