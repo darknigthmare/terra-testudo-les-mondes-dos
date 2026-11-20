@@ -28,7 +28,7 @@ Sous Windows, `start.bat` fait la même chose. Sous macOS ou Linux, utilisez `./
 npm run qa
 ```
 
-La validation contrôle la syntaxe, les règles de contenu, le serveur HTTP et 16 scénarios de simulation : sauvegardes corrompues, économie, voisinages, évolutions, expéditions, commerce, délais d’action, combats et restauration d’une partie.
+La validation contrôle la syntaxe, les règles de contenu, le préache hors ligne, le serveur HTTP et 16 scénarios de simulation : sauvegardes corrompues, économie, voisinages, évolutions, expéditions, commerce, délais d’action, combats et restauration d’une partie.
 
 ## Boucle de jeu
 
@@ -92,6 +92,7 @@ terra-testudo/
 │   ├── state.js               Simulation, économie, progression et sauvegarde
 │   ├── render.js              Rendu Canvas 2D procédural
 │   ├── audio.js               Sons et ambiance Web Audio
+│   ├── icons.js               Pictogrammes gravés en SVG
 │   └── main.js                Interface, contrôles et boucle principale
 ├── assets/                    Illustration de titre et icône PWA
 ├── scripts/qa.mjs             Validation de release sans dépendance

@@ -183,6 +183,33 @@ h2[tabindex="-1"]:focus-visible {
   stroke-width: 1.5;
 }
 
+.quest-card h3 .icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  vertical-align: -0.2em;
+}
+
+.icon-button .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.brand-mark .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.event-symbol .icon {
+  width: 26px;
+  height: 26px;
+}
+
+.campaign-crown .icon {
+  width: 34px;
+  height: 34px;
+}
+
 [hidden] {
   display: none !important;
 }
@@ -595,9 +622,11 @@ h2[tabindex="-1"]:focus-visible {
 }
 
 .feature-strip span::before {
-  content: "◆";
-  color: rgba(198, 166, 96, 0.7);
-  font-size: 0.5rem;
+  content: "";
+  width: 5px;
+  height: 5px;
+  border: 1px solid rgba(198, 166, 96, 0.7);
+  transform: rotate(45deg);
 }
 
 .version-badge {
@@ -2066,9 +2095,11 @@ h2[tabindex="-1"]:focus-visible {
 }
 
 .story-pill-row span::before {
-  content: "◆";
-  color: rgba(198, 166, 96, 0.75);
-  font-size: 0.46rem;
+  content: "";
+  width: 4px;
+  height: 4px;
+  border: 1px solid rgba(198, 166, 96, 0.75);
+  transform: rotate(45deg);
 }
 
 .story-guide-footer {

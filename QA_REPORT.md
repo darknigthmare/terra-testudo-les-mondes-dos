@@ -10,7 +10,7 @@ Commande exécutée :
 npm run qa
 ```
 
-Résultat : **16 tests de simulation réussis**, contrat de contenu valide avec **15 quêtes, 8 expéditions et 10 événements**, syntaxe valide pour 10 fichiers JavaScript et smoke test HTTP réussi.
+Résultat : **16 tests de simulation réussis**, contrat de contenu valide avec **15 quêtes, 8 expéditions et 10 événements**, syntaxe valide pour 11 fichiers JavaScript, préache hors ligne complet et smoke test HTTP réussi.
 
 Scénarios couverts :
 
@@ -29,6 +29,8 @@ Scénarios couverts :
 ## Vérifications de syntaxe et de serveur
 
 Tous les modules JavaScript, le serveur, le service worker et les tests passent `node --check`.
+
+Le préache du service worker est contrôlé : chaque fichier déclaré existe et chaque module importé par le jeu y figure, si bien que le jeu redémarre hors ligne avec ses pictogrammes.
 
 Le serveur local répond correctement sur :
 

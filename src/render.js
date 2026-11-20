@@ -1,4 +1,4 @@
-import { BUILDINGS, ENEMY_TYPES, MAX_GRID, TERRAIN, TIERS } from './data.js';
+import { BUILDINGS, MAX_GRID, TERRAIN, TIERS } from './data.js';
 import { enemyIconPath } from './icons.js';
 import { activeBounds, clamp, getTile, isTileActive, lerp, validateBuild } from './state.js';
 
@@ -334,7 +334,7 @@ export class TurtleRenderer {
     for (const item of tiles) this.drawTile(state, item.tile, item.position.x, item.position.y, tileW * zoom, tileH * zoom, ui);
     // Buildings and standing props share one depth order: a tree in front of a house hides its base.
     for (const item of tiles) {
-      if (item.tile.building) this.drawBuilding(state, item.tile, item.position.x, item.position.y, tileW * zoom, tileH * zoom);
+      if (item.tile.building) this.drawBuilding(item.tile, item.position.x, item.position.y, tileW * zoom, tileH * zoom);
       else this.drawTileProps(item.tile, item.position.x, item.position.y, tileW * zoom, tileH * zoom);
     }
 
@@ -610,7 +610,7 @@ export class TurtleRenderer {
     ctx.fill();
   }
 
-  drawBuilding(state, tile, x, y, tileW, tileH) {
+  drawBuilding(tile, x, y, tileW, tileH) {
     const ctx = this.ctx;
     const data = BUILDINGS[tile.building.id];
     if (!data) return;
@@ -650,7 +650,6 @@ export class TurtleRenderer {
     else if (id === 'stormCannon') this.drawBallista(color, true);
     else if (id === 'grandSanctuary') this.drawTemple(color, true);
     else if (id === 'worldGate') this.drawWorldGate(color);
-    else this.drawIconBuilding(data.icon, color);
 
     if (hp < 0.99) {
       const barTop = BUILDING_TOP[id] ?? -32;
@@ -856,10 +855,18 @@ export class TurtleRenderer {
     ctx.lineTo(23, -11);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = '#343b3b';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('⚙', 0, 7);
+    ctx.strokeStyle = '#343b3b';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.arc(0, 4, 6, 0, Math.PI * 2);
+    ctx.stroke();
+    for (let tooth = 0; tooth < 6; tooth += 1) {
+      const angle = (tooth * Math.PI) / 3;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * 8.4, Math.sin(angle) * 8.4 + 4);
+      ctx.lineTo(Math.cos(angle) * 11, Math.sin(angle) * 11 + 4);
+      ctx.stroke();
+    }
   }
 
   drawBallista(color, storm) {
@@ -1037,18 +1044,6 @@ export class TurtleRenderer {
     ctx.fill();
   }
 
-  drawIconBuilding(icon, color) {
-    const ctx = this.ctx;
-    ctx.fillStyle = color;
-    roundedRect(ctx, -18, -20, 36, 32, 8);
-    ctx.fill();
-    ctx.fillStyle = '#192525';
-    ctx.font = 'bold 22px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(icon, 0, -4);
-  }
-
   drawCombat(state, centerX, centerY, shellW, shellH) {
     const ctx = this.ctx;
     const combat = state.combat;
@@ -1075,7 +1070,6 @@ export class TurtleRenderer {
       const y = centerY + Math.sin(enemy.angle) * radiusY + tangentY / tangentLength * lane
         + (enemy.type === 'air' ? -35 + wobble : wobble * 0.25);
       this.enemyPositions.set(enemy.uid, { x, y });
-      const base = ENEMY_TYPES[enemy.id];
       const scale = clamp(0.70 + (1 - approach) * 0.36, 0.70, 1.06);
 
       if (enemy.type === 'air') {
@@ -1093,24 +1087,15 @@ export class TurtleRenderer {
       ctx.fillStyle = enemy.hitFlash > 0 ? '#f3d7bd' : enemy.type === 'air' ? '#b88b78' : '#8f775a';
       roundedRect(ctx, -22, -14, 44, 28, 8);
       ctx.fill();
-      const engraved = enemyIconPath(enemy.id);
-      if (engraved) {
-        ctx.save();
-        ctx.translate(-9.6, -9.6);
-        ctx.scale(0.8, 0.8);
-        ctx.strokeStyle = '#2b2524';
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.stroke(new Path2D(engraved));
-        ctx.restore();
-      } else {
-        ctx.fillStyle = '#2b2524';
-        ctx.font = 'bold 22px serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(base.icon, 0, 1);
-      }
+      ctx.save();
+      ctx.translate(-9.6, -9.6);
+      ctx.scale(0.8, 0.8);
+      ctx.strokeStyle = '#2b2524';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke(new Path2D(enemyIconPath(enemy.id)));
+      ctx.restore();
       ctx.restore();
 
       if (enemy.hp > 0) {

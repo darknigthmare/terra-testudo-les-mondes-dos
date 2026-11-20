@@ -18,12 +18,16 @@
 - Ajout de la navigation complète au clavier sur la grille, d’annonces accessibles et d’indicateurs de progression explicites.
 - Amélioration du focus, de la fermeture à Échap et de la stabilité des modales lors des rafraîchissements de simulation.
 - Aide conservée dans la barre mobile et confirmation avant d’écraser une sauvegarde existante.
+- Remplacement des glyphes typographiques par des pictogrammes gravés, dessinés et redessinés pour rester lisibles aux tailles réelles de l’interface : bâtiments, expéditions, créatures-mondes, quêtes, événements, terrain et contrôles.
+- Pictogrammes d’ennemis tracés sur le canvas avec `Path2D`, sur la même grille et le même trait que les icônes de l’interface.
 
 ### Release
 
 - Passage du cache hors ligne en stratégie réseau prioritaire pour servir immédiatement les nouvelles versions.
 - Durcissement du serveur statique et ajout des contrôles GET/HEAD, MIME, traversée de chemins et fichiers privés.
 - Passage à 16 tests de simulation, ajout des contrats de contenu et d’un contrôle de release unique avec `npm run qa`.
+- Préache hors ligne complété avec le module de pictogrammes et nouveau contrôle de `npm run qa` vérifiant que chaque fichier déclaré existe et que tout module importé par le jeu figure dans le préache.
+- Suppression des champs `icon` Unicode devenus inutiles dans les données (bâtiments, ennemis, créatures-mondes, expéditions, ressources) et des replis typographiques correspondants dans le rendu.
 
 ## 1.0.0 — Fondation des Mondes-Dos
 

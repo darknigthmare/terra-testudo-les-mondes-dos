@@ -72,7 +72,7 @@
   <div id="gameApp" class="game-app" hidden>
     <header class="topbar">
       <div class="brand-block">
-        <div class="brand-mark" aria-hidden="true">◉</div>
+        <div id="brandMark" class="brand-mark" aria-hidden="true"></div>
         <div>
           <strong id="brandCity">Havre-d’Écaille</strong>
           <span id="brandTier">Tortillon</span>
@@ -82,11 +82,11 @@
       <div id="resourceBar" class="resource-bar" aria-label="Ressources"></div>
 
       <div class="top-controls">
-        <button id="pauseBtn" class="icon-button" type="button" title="Pause ou reprise" aria-label="Pause ou reprise">Ⅱ</button>
+        <button id="pauseBtn" class="icon-button" type="button" title="Pause ou reprise" aria-label="Pause ou reprise"></button>
         <button id="speedBtn" class="speed-button" type="button" title="Vitesse du jeu">×1</button>
-        <button id="saveBtn" class="icon-button" type="button" title="Sauvegarder" aria-label="Sauvegarder">▣</button>
-        <button id="soundBtn" class="icon-button" type="button" title="Son" aria-label="Activer ou couper le son">♪</button>
-        <button id="helpBtn" class="icon-button" type="button" title="Aide" aria-label="Ouvrir l’aide">?</button>
+        <button id="saveBtn" class="icon-button" type="button" title="Sauvegarder" aria-label="Sauvegarder"></button>
+        <button id="soundBtn" class="icon-button" type="button" title="Son" aria-label="Activer ou couper le son"></button>
+        <button id="helpBtn" class="icon-button" type="button" title="Aide" aria-label="Ouvrir l’aide"></button>
       </div>
     </header>
 
@@ -152,7 +152,7 @@
 
   <div id="eventModal" class="modal-layer" hidden>
     <div class="modal-card event-card" role="dialog" aria-modal="true" aria-labelledby="eventTitle">
-      <div class="event-symbol">✦</div>
+      <div id="eventSymbol" class="event-symbol"></div>
       <span class="eyebrow">ÉVÉNEMENT DU VOYAGE</span>
       <h2 id="eventTitle"></h2>
       <p id="eventText"></p>
@@ -162,7 +162,7 @@
 
   <div id="combatModal" class="modal-layer" hidden>
     <div class="modal-card combat-result-card" role="dialog" aria-modal="true" aria-labelledby="combatResultTitle">
-      <div id="combatResultSymbol" class="event-symbol">⚔</div>
+      <div id="combatResultSymbol" class="event-symbol"></div>
       <span class="eyebrow">RÉSULTAT DU RAID</span>
       <h2 id="combatResultTitle"></h2>
       <p id="combatResultText"></p>
@@ -209,7 +209,7 @@
   <div id="campaignModal" class="modal-layer campaign-layer" hidden>
     <div class="modal-card campaign-card" role="dialog" aria-modal="true" aria-labelledby="campaignTitle">
       <span class="eyebrow">CHRONIQUE ACCOMPLIE</span>
-      <div class="campaign-crown" aria-hidden="true">✦</div>
+      <div id="campaignCrown" class="campaign-crown" aria-hidden="true"></div>
       <h2 id="campaignTitle" tabindex="-1">Une tortue devient un monde</h2>
       <p id="campaignLead"></p>
       <div id="campaignStats" class="campaign-stats"></div>

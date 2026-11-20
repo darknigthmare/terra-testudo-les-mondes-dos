@@ -1,7 +1,7 @@
 const CACHE = 'terra-testudo-v1.1.0';
 const FILES = [
   './', './index.html', './styles.css', './manifest.webmanifest', './assets/icon.svg', './assets/terra-testudo-title-art.png',
-  './src/main.js', './src/data.js', './src/state.js', './src/render.js', './src/audio.js'
+  './src/main.js', './src/data.js', './src/state.js', './src/render.js', './src/audio.js', './src/icons.js'
 ];
 
 self.addEventListener('install', (event) => {

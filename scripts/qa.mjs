@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readdir } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import { request } from 'node:http';
-import { dirname, extname, join, resolve } from 'node:path';
+import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createStaticServer } from '../server.mjs';
@@ -49,6 +49,62 @@ async function checkSyntax() {
 function runTests() {
   runNode(['tests/state.test.mjs'], 'Tests de logique');
   runNode(['tests/data.test.mjs'], 'Tests de contenu');
+}
+
+// Offline support only works if every module the game imports is in the Service Worker precache.
+function parsePrecache(source) {
+  const block = source.match(/const FILES = \[([\s\S]*?)\];/);
+  assert.ok(block, 'Liste FILES introuvable dans sw.js');
+  return [...block[1].matchAll(/'([^']+)'/g)].map((match) => match[1]);
+}
+
+function normalizePrecacheEntry(entry) {
+  const cleaned = entry.replace(/^\.\//, '');
+  return cleaned === '' ? 'index.html' : cleaned.replaceAll('\\', '/');
+}
+
+function moduleSpecifiers(source) {
+  const specifiers = new Set();
+  for (const match of source.matchAll(/\bfrom\s*['"]([^'"]+)['"]/g)) specifiers.add(match[1]);
+  for (const match of source.matchAll(/\bimport\s*\(?\s*['"]([^'"]+)['"]/g)) specifiers.add(match[1]);
+  return specifiers;
+}
+
+async function checkPrecache() {
+  const root = projectRoot;
+  const swSource = await readFile(join(root, 'sw.js'), 'utf8');
+  const entries = parsePrecache(swSource);
+  const precached = new Set(entries.map(normalizePrecacheEntry));
+  const problems = [];
+
+  for (const file of precached) {
+    const info = await stat(join(root, file)).catch(() => null);
+    if (!info?.isFile()) problems.push(`sw.js preache ${file}, introuvable`);
+  }
+
+  for (const file of precached) {
+    if (!javascriptExtensions.has(extname(file))) continue;
+    const source = await readFile(join(root, file), 'utf8');
+    for (const specifier of moduleSpecifiers(source)) {
+      if (!specifier.startsWith('.')) {
+        problems.push(`${file} importe ${specifier}, module externe impossible a precacher`);
+        continue;
+      }
+      const target = normalizePrecacheEntry(
+        relative(root, resolve(root, dirname(file), specifier)).split(sep).join('/'),
+      );
+      if (!precached.has(target)) problems.push(`${file} importe ${specifier}, absent du preache`);
+    }
+  }
+
+  const html = await readFile(join(root, 'index.html'), 'utf8');
+  for (const match of html.matchAll(/<script[^>]*type="module"[^>]*src="([^"]+)"/g)) {
+    const entry = normalizePrecacheEntry(match[1]);
+    if (!precached.has(entry)) problems.push(`index.html charge ${match[1]}, absent du preache`);
+  }
+
+  assert.equal(problems.length, 0, `Preache hors ligne incomplet:\n- ${problems.join('\n- ')}`);
+  console.log(`Preache hors ligne couvert : ${precached.size} fichiers, imports des modules verifies.`);
 }
 
 function requestOnce(port, path, method = 'GET') {
@@ -146,12 +202,15 @@ try {
     await checkSyntax();
   } else if (mode === 'smoke') {
     await smokeServer();
+  } else if (mode === 'precache') {
+    await checkPrecache();
   } else if (mode === 'all') {
     await checkSyntax();
     runTests();
+    await checkPrecache();
     await smokeServer();
   } else {
-    throw new Error(`Mode inconnu: ${mode}. Utilisez syntax, smoke ou all.`);
+    throw new Error(`Mode inconnu: ${mode}. Utilisez syntax, smoke, precache ou all.`);
   }
 } catch (error) {
   console.error(error instanceof Error ? error.stack : error);

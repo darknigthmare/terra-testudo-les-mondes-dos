@@ -151,7 +151,6 @@ function generateWorldNodes(seed) {
     nodes.push({
       id: `world-${i}-${Math.floor(rng() * 99999)}`,
       kind: archetype.kind,
-      icon: archetype.icon,
       name,
       faction,
       description: archetype.description,
@@ -1156,7 +1155,6 @@ function sanitizedWorldNodes(value, defaults) {
     return {
       id,
       kind: typeof loadedNode.kind === 'string' && validKinds.has(loadedNode.kind) ? loadedNode.kind : fallback.kind,
-      icon: sanitizedText(loadedNode.icon, fallback.icon, 8),
       name: sanitizedText(loadedNode.name, fallback.name, 64),
       faction: sanitizedText(loadedNode.faction, fallback.faction, 96),
       description: sanitizedText(loadedNode.description, fallback.description, 320),

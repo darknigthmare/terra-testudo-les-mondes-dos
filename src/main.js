@@ -9,7 +9,18 @@ import {
   TERRAIN,
   TIERS,
 } from './data.js';
-import { buildingIcon, expeditionIcon, goalIcon, resourceIcon, worldIcon } from './icons.js';
+import {
+  buildingIcon,
+  combatIcon,
+  controlIcon,
+  eventIcon,
+  expeditionIcon,
+  goalIcon,
+  questIcon,
+  resourceIcon,
+  terrainIcon,
+  worldIcon,
+} from './icons.js';
 import {
   activeBounds,
   attackNode,
@@ -87,6 +98,7 @@ const elements = {
   eventTitle: $('#eventTitle'),
   eventText: $('#eventText'),
   eventChoices: $('#eventChoices'),
+  eventSymbol: $('#eventSymbol'),
   combatModal: $('#combatModal'),
   combatResultSymbol: $('#combatResultSymbol'),
   combatResultTitle: $('#combatResultTitle'),
@@ -103,13 +115,27 @@ const elements = {
   helpDoneBtn: $('#helpDoneBtn'),
   gameAnnouncements: $('#gameAnnouncements'),
   campaignModal: $('#campaignModal'),
+  campaignCrown: $('#campaignCrown'),
   campaignTitle: $('#campaignTitle'),
   campaignLead: $('#campaignLead'),
   campaignStats: $('#campaignStats'),
   campaignExportBtn: $('#campaignExportBtn'),
   campaignContinueBtn: $('#campaignContinueBtn'),
   toastStack: $('#toastStack'),
+  brandMark: $('#brandMark'),
 };
+
+// Static chrome marks are drawn like every other pictogram, never set as a font glyph.
+function paintStaticIcons() {
+  elements.brandMark.innerHTML = worldIcon('turtle');
+  elements.pauseBtn.innerHTML = controlIcon('pause');
+  elements.saveBtn.innerHTML = controlIcon('save');
+  elements.soundBtn.innerHTML = controlIcon('sound');
+  elements.helpBtn.innerHTML = controlIcon('help');
+  elements.campaignCrown.innerHTML = goalIcon('elder');
+}
+
+paintStaticIcons();
 
 let state = null;
 let renderer = null;
@@ -200,7 +226,7 @@ function relationInfo(value) {
 
 function resourceListHtml(values, stateRef = state, markMissing = false) {
   return Object.entries(values || {}).map(([resource, amount]) => {
-    const meta = ALL_META[resource] || { icon: '·', name: resource };
+    const meta = ALL_META[resource] || { name: resource };
     const missing = markMissing && resource in (stateRef?.resources || {}) && (stateRef.resources[resource] || 0) < amount;
     return `<span class="cost-chip ${missing ? 'missing' : ''}" title="${esc(meta.name)}"><span>${resourceIcon(resource)}</span>${formatNumber(amount, amount < 10)}</span>`;
   }).join('');
@@ -208,7 +234,7 @@ function resourceListHtml(values, stateRef = state, markMissing = false) {
 
 function rewardListHtml(values) {
   return Object.entries(values || {}).map(([resource, amount]) => {
-    const meta = ALL_META[resource] || { icon: '·', name: resource };
+    const meta = ALL_META[resource] || { name: resource };
     return `<span class="reward-chip"><span>${resourceIcon(resource)}</span><strong>${formatNumber(amount, amount < 10)}</strong> ${esc(meta.name)}</span>`;
   }).join('');
 }
@@ -450,7 +476,7 @@ function renderTopUI() {
   elements.brandCity.textContent = state.cityName;
   elements.brandTier.textContent = TIERS[state.tier].name;
   updateResourceBar(economy);
-  elements.pauseBtn.textContent = state.paused ? '▶' : 'Ⅱ';
+  elements.pauseBtn.innerHTML = controlIcon(state.paused ? 'play' : 'pause');
   elements.pauseBtn.classList.toggle('active', state.paused);
   elements.pauseBtn.setAttribute('aria-pressed', String(state.paused));
   elements.speedBtn.textContent = `×${state.gameSpeed}`;
@@ -536,7 +562,7 @@ function renderExpeditionPanel() {
         return `<article class="expedition-card ${available ? '' : 'locked'}">
           <div class="card-header"><div><span class="card-symbol">${expeditionIcon(data.id)}</span><div><h4>${esc(data.name)}</h4><small>${formatDuration(data.duration)} · danger ${Math.round(data.danger * 100)} %</small></div></div></div>
           <p class="card-description">${esc(data.description)}</p>
-          <div class="cost-row"><span class="cost-chip ${state.resources.food < foodCost ? 'missing' : ''}">● ${foodCost}</span><span class="cost-chip">Requis : ${esc(requirementText(data.requirements))}</span></div>
+          <div class="cost-row"><span class="cost-chip ${state.resources.food < foodCost ? 'missing' : ''}"><span>${resourceIcon('food')}</span>${foodCost}</span><span class="cost-chip">Requis : ${esc(requirementText(data.requirements))}</span></div>
           <div class="cost-row">${Object.entries(data.reward).map(([resource, range]) => `<span class="cost-chip production-chip"><span>${resourceIcon(resource)}</span>${range[0]}–${range[1]}</span>`).join('')}</div>
           <button class="small-button ${canLaunch ? 'accent' : ''}" data-action="start-expedition" data-id="${data.id}" type="button" ${canLaunch ? '' : 'disabled'}>${crewsBusy ? 'Équipages mobilisés' : available ? capacity ? 'Préparer le départ' : 'Équipes occupées' : 'Infrastructure manquante'}</button>
         </article>`;
@@ -568,7 +594,7 @@ function renderEvolutionPanel() {
     <button class="button secondary full" data-action="feed-turtle" type="button" ${state.resources.food >= 28 && state.satiety < 99 ? '' : 'disabled'}>Nourrir ${esc(state.turtleName)} · 28 vivres</button>
 
     ${next ? `<article class="tier-card">
-      <div class="card-header"><div><span class="card-symbol">✦</span><div><h4>Éveil vers ${esc(next.name)}</h4><small>${next.grid}×${next.grid} cases · ${next.populationCap} habitants</small></div></div></div>
+      <div class="card-header"><div><span class="card-symbol">${questIcon('tier')}</span><div><h4>Éveil vers ${esc(next.name)}</h4><small>${next.grid}×${next.grid} cases · ${next.populationCap} habitants</small></div></div></div>
       <p class="card-description">${esc(next.description)}</p>
       <div class="requirement-list">
         ${requirementItem('Prospérité', state.prosperity, next.prosperityRequired)}
@@ -577,7 +603,7 @@ function renderEvolutionPanel() {
         ${requirementItem('Harmonie', state.harmony, 45)}
         ${requirementItem('Satiété', state.satiety, 35)}
       </div>
-      <div class="cost-row"><span class="cost-chip">Rituel : ✦ ${Math.ceil(next.spiritRequired * 0.45)}</span></div>
+      <div class="cost-row"><span class="cost-chip">Rituel : ${resourceIcon('spirit')} ${Math.ceil(next.spiritRequired * 0.45)}</span></div>
       <button class="button primary full" data-action="evolve" type="button" ${validation.ok ? '' : 'disabled'}>Faire grandir la tortue-monde</button>
       ${validation.ok ? '' : `<small>${esc(validation.reason)}</small>`}
     </article>` : `<div class="info-card gold"><h3>Forme elder accomplie</h3><p>${esc(state.turtleName)} porte désormais un royaume vivant. Continuez à fédérer ou dominer l’archipel.</p></div>`}
@@ -676,13 +702,13 @@ function renderCommandPanel() {
 
 function renderQuestCard() {
   const quest = currentQuest(state);
-  if (!quest) return `<article class="quest-card ready"><span class="eyebrow">DESTIN ACCOMPLI</span><h3>Chronique complète</h3><p>Tous les objectifs fondateurs sont achevés. Le monde continue librement.</p></article>`;
+  if (!quest)   return `<article class="quest-card ready"><span class="eyebrow">DESTIN ACCOMPLI</span><h3>${questIcon('victory')} Chronique complète</h3><p>Tous les objectifs fondateurs sont achevés. Le monde continue librement.</p></article>`;
   const value = questValue(state, quest);
   const percent = Math.min(100, value / quest.amount * 100);
   const ready = state.completedQuests.includes(quest.id) && !state.claimedQuests.includes(quest.id);
   return `<article class="quest-card ${ready ? 'ready' : ''}">
     <span class="eyebrow">OBJECTIF ACTUEL</span>
-    <h3>${esc(quest.title)}</h3>
+    <h3>${questIcon(quest.type)} ${esc(quest.title)}</h3>
     <p>${esc(quest.text)}</p>
     <div class="progress-track" role="progressbar" aria-label="Progression de l’objectif" aria-valuemin="0" aria-valuemax="${quest.amount}" aria-valuenow="${value}"><div class="progress-fill" style="width:${percent}%"></div></div>
     <div class="progress-labels"><span>${formatNumber(value, true)} / ${quest.amount}</span><span>${Math.floor(percent)} %</span></div>
@@ -724,7 +750,7 @@ function renderTileInspector(tile) {
       .map((id) => BUILDINGS[id].name)
       .join(' · ');
     return `<article class="tile-card">
-      <div class="tile-title"><div><h3>${esc(terrain.name)}</h3><small>Case ${tile.x + 1}, ${tile.y + 1}</small></div><span class="tile-symbol">◇</span></div>
+      <div class="tile-title"><div><h3>${esc(terrain.name)}</h3><small>Case ${tile.x + 1}, ${tile.y + 1}</small></div><span class="tile-symbol">${terrainIcon(tile.terrain)}</span></div>
       <p class="card-description">Case libre de la carapace. ${terrain.production ? `Affinité naturelle : ${RESOURCE_META[terrain.production]?.name || terrain.production}.` : 'Terrain polyvalent.'}</p>
       <div class="detail-row"><span>Constructible</span><strong>${compatible ? 'Oui' : 'Non'}</strong></div>
       <div class="info-card"><h3>Constructions adaptées</h3><p>${compatible || 'Aucun bâtiment actuellement débloqué.'}</p></div>
@@ -771,10 +797,10 @@ function renderWorldNodeInspector(node) {
     </div>
     <div class="section-title-row"><h3>Diplomatie</h3><small>Les choix persistent</small></div>
     <div class="inline-actions">
-      <button class="small-button" data-action="explore-node" data-id="${node.id}" type="button" ${actionsLocked || state.resources.food < 18 ? 'disabled' : ''}>${cooldown > 0 ? `Équipage en route · ${cooldown} s` : node.visited ? 'Revisiter · ● 18' : 'Première approche · ● 18'}</button>
+      <button class="small-button" data-action="explore-node" data-id="${node.id}" type="button" ${actionsLocked || state.resources.food < 18 ? 'disabled' : ''}>${cooldown > 0 ? `Équipage en route · ${cooldown} s` : node.visited ? `Revisiter · ${resourceIcon('food')} 18` : `Première approche · ${resourceIcon('food')} 18`}</button>
       <button class="small-button" data-action="trade-node" data-id="${node.id}" type="button" ${actionsLocked || node.relation <= -25 || !canAfford(state, tradeCost) ? 'disabled' : ''}>Échanger · ${resourceListHtml(tradeCost)}</button>
     </div>
-    <div class="section-title-row"><h3>Assaut</h3><small>Coût : ● 26 · ¤ 6</small></div>
+    <div class="section-title-row"><h3>Assaut</h3><small>Coût : ${resourceIcon('food')} 26 · ${resourceIcon('pearls')} 6</small></div>
     <div class="inline-actions">
       <button class="small-button danger" data-action="attack-node" data-id="${node.id}" type="button" ${node.defeated || !accessAvailable || cooldown > 0 || crewsBusy ? 'disabled' : ''}>${assaultMode === 'air' ? 'Assaut aérien' : 'Assaut maritime'}</button>
     </div>
@@ -820,6 +846,7 @@ function renderEventModal() {
   if (!elements.eventModal.hidden && lastRenderedEventId === state.event.id) return;
   elements.eventModal.hidden = false;
   lastRenderedEventId = state.event.id;
+  elements.eventSymbol.innerHTML = eventIcon(state.event.id);
   elements.eventTitle.textContent = state.event.title;
   elements.eventText.textContent = state.event.text;
   elements.eventChoices.innerHTML = state.event.choices.map((choice, index) => {
@@ -849,7 +876,7 @@ function renderCombatModal() {
   elements.combatModal.hidden = false;
   lastRenderedCombatKey = combatKey;
   const victory = combat.outcome === 'victory';
-  elements.combatResultSymbol.textContent = victory ? '✦' : '⚠';
+  elements.combatResultSymbol.innerHTML = combatIcon(victory ? 'victory' : 'defeat');
   elements.combatResultTitle.textContent = victory ? (combat.breaches ? 'La carapace a survécu' : 'La carapace tient bon') : 'La tortue a dû plonger';
   elements.combatResultText.textContent = victory
     ? `${combat.kills || 0} assaillant${(combat.kills || 0) > 1 ? 's ont' : ' a'} été neutralisé${(combat.kills || 0) > 1 ? 's' : ''}${combat.breaches ? ` et ${combat.breaches} ont atteint le dos` : ''}. Le résultat modifie les récompenses et le prestige du monde.`
