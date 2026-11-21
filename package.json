@@ -11,6 +11,7 @@
     "test": "node tests/state.test.mjs && node tests/data.test.mjs",
     "syntax": "node scripts/qa.mjs syntax",
     "smoke": "node scripts/qa.mjs smoke",
-    "qa": "node scripts/qa.mjs all"
+    "qa": "node scripts/qa.mjs all",
+    "sim": "node scripts/simulate.mjs"
   }
 }

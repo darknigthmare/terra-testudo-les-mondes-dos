@@ -30,6 +30,16 @@ npm run qa
 
 La validation contrôle la syntaxe, les règles de contenu, le préache hors ligne, la lisibilité des pictogrammes, le serveur HTTP et 17 scénarios de simulation : sauvegardes corrompues, économie, voisinages, évolutions, expéditions, commerce, délais d’action, combats et restauration d’une partie.
 
+### Simulation de rythme
+
+```bash
+npm run sim -- --games 3000
+```
+
+Le harnais `scripts/simulate.mjs` joue des parties entières sans navigateur, avec les règles réelles de `src/state.js`, à l’aide d’un joueur automatique à politique fixe (il construit, nourrit, évolue, expédie, résout les événements et referme les raids). Sa cadence est explicite : une décision toutes les 6 s de jeu (`--decision-every`) et au plus 2 bâtiments par décision (`--builds`). Ces valeurs sont écrites dans `meta.bot` du `summary.json` et rappelées en tête du résumé console, pour que les durées restent interprétables. Il imprime la durée médiane de chaque âge, la prospérité atteinte au moment de monter, les raids subis par heure, puis écrit dans `artifacts/sim/` un `summary.json`, les courbes `curves.csv` / `curves.svg` et un `ages.csv`. Les courbes sont des médianes par tranche de 5 min par défaut ; `--bucket` (en secondes) change la tranche et le libellé du tableau comme le `meta.bucketSeconds` du résumé suivent l’option.
+
+Options utiles : `--max-minutes`, `--seed`, `--workers`, `--decision-every` et `--builds` pour simuler un joueur plus lent, `--bucket`, `--difficulty conte|voyage|tempete`. Chaque graine rejoue exactement la même partie, quel que soit le nombre de workers.
+
 ## Boucle de jeu
 
 1. **Construire** sur les terrains de la carapace.

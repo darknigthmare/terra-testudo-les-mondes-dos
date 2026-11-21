@@ -30,6 +30,7 @@
 - Préache hors ligne complété avec le module de pictogrammes et nouveau contrôle de `npm run qa` vérifiant que chaque fichier déclaré existe et que tout module importé par le jeu figure dans le préache.
 - Nouveau contrôle de lisibilité dans `npm run qa` : grille 24 des tracés, tailles minimales par contexte et largeur de trait, contraste des paires de couleurs codées en dur.
 - Lisibilité des pictogrammes, palier 1 : raie céleste, défenses, ennemis et récifs basaltiques redessinés, symboles de carte portés à 23 px avec un trait plus franc, trait des ennemis du canvas éclairci, cartes verrouillées lisibles et badges d’ennemis bornés au cadre du canvas.
+- Harnais de simulation headless `npm run sim` : des milliers de parties rejouées avec les règles réelles de `state.js` par un joueur automatique, avec courbes de durée par âge, de prospérité et de raids subis, et détection des paliers qui traînent ou s’emballent.
 - Prise en charge de la préférence système `prefers-reduced-motion` fusionnée avec le réglage du joueur.
 - Suppression des champs `icon` Unicode devenus inutiles dans les données (bâtiments, ennemis, créatures-mondes, expéditions, ressources) et des replis typographiques correspondants dans le rendu.
 
