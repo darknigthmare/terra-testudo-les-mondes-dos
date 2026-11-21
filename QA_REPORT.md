@@ -10,7 +10,7 @@ Commande exécutée :
 npm run qa
 ```
 
-Résultat : **16 tests de simulation réussis**, contrat de contenu valide avec **15 quêtes, 8 expéditions et 10 événements**, syntaxe valide pour 11 fichiers JavaScript, préache hors ligne complet et smoke test HTTP réussi.
+Résultat : **17 tests de simulation réussis**, contrat de contenu valide avec **15 quêtes, 8 expéditions et 10 événements**, syntaxe valide pour 11 fichiers JavaScript, préache hors ligne complet et smoke test HTTP réussi.
 
 Scénarios couverts :
 
@@ -24,7 +24,8 @@ Scénarios couverts :
 - première découverte et revisite d’un monde ;
 - suppression des contributions après démolition ou destruction ;
 - choix de la sauvegarde valide la plus récente et repli après corruption ;
-- assainissement d’une sauvegarde importée hostile ou incohérente.
+- assainissement d’une sauvegarde importée hostile ou incohérente ;
+- persistance des réglages d’accessibilité et réparation de valeurs hors bornes.
 
 ## Vérifications de syntaxe et de serveur
 

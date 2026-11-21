@@ -172,6 +172,9 @@ function generateWorldNodes(seed) {
   return nodes;
 }
 
+// Player comfort settings, stored with the save so they survive a reload.
+export const TEXT_SCALES = [1, 1.15, 1.3];
+
 export function createGame(options = {}) {
   const seed = Number.isFinite(options.seed) ? options.seed : Math.floor(Math.random() * 2_000_000_000);
   const tiles = generateTerrain(seed);
@@ -241,6 +244,13 @@ export function createGame(options = {}) {
       totalProsperityEarned: 14,
     },
     tutorialStep: 0,
+    settings: {
+      reduceMotion: false,
+      textScale: 1,
+      highContrast: false,
+      soundVolume: 0.8,
+      ambientVolume: 0.6,
+    },
   };
 
   const centerTile = getTile(state, center, center);
@@ -1272,6 +1282,18 @@ function isRecognizableSave(value) {
   return sanitizedNumber(value.seed, null, 0, 2_000_000_000, true) !== null;
 }
 
+function sanitizedSettings(value, defaults) {
+  const source = isRecord(value) ? value : {};
+  const textScale = Number(source.textScale);
+  return {
+    reduceMotion: source.reduceMotion === true,
+    textScale: TEXT_SCALES.includes(textScale) ? textScale : defaults.textScale,
+    highContrast: source.highContrast === true,
+    soundVolume: sanitizedNumber(source.soundVolume, defaults.soundVolume, 0, 1),
+    ambientVolume: sanitizedNumber(source.ambientVolume, defaults.ambientVolume, 0, 1),
+  };
+}
+
 export function hydrateGame(loaded, announce = true) {
   if (!isRecord(loaded)) return null;
   const defaults = createGame({
@@ -1327,6 +1349,7 @@ export function hydrateGame(loaded, announce = true) {
   state.nextEventIn = sanitizedNumber(loaded.nextEventIn, defaults.nextEventIn, 0, 10_000_000);
   state.nextRaidIn = sanitizedNumber(loaded.nextRaidIn, defaults.nextRaidIn, 0, 10_000_000);
   state.tutorialStep = sanitizedNumber(loaded.tutorialStep, defaults.tutorialStep, 0, 1_000_000, true);
+  state.settings = sanitizedSettings(loaded.settings, defaults.settings);
   state.selectedWorldNodeId = typeof loaded.selectedWorldNodeId === 'string'
     && state.worldNodes.some((node) => node.id === loaded.selectedWorldNodeId)
     ? loaded.selectedWorldNodeId

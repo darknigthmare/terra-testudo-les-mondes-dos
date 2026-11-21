@@ -408,6 +408,19 @@ function testCombatVictory() {
   assert.equal(state.stats.raidsWon, 1);
 }
 
+function testSettingsPersistence() {
+  const state = createGame({ seed: 99 });
+  state.settings = { reduceMotion: true, textScale: 1.3, highContrast: true, soundVolume: 0.35, ambientVolume: 0 };
+  const copy = hydrateGame(JSON.parse(JSON.stringify(state)), false);
+  assert.deepEqual(copy.settings, { reduceMotion: true, textScale: 1.3, highContrast: true, soundVolume: 0.35, ambientVolume: 0 });
+
+  const hostile = JSON.parse(JSON.stringify(state));
+  hostile.settings = { reduceMotion: 'yes', textScale: 9, highContrast: 1, soundVolume: 4, ambientVolume: -2 };
+  const repaired = hydrateGame(hostile, false);
+  assert.deepEqual(repaired.settings, { reduceMotion: false, textScale: 1, highContrast: false, soundVolume: 1, ambientVolume: 0 });
+  assert.deepEqual(createGame({ seed: 7 }).settings, { reduceMotion: false, textScale: 1, highContrast: false, soundVolume: 0.8, ambientVolume: 0.6 });
+}
+
 function testHydration() {
   const state = createGame({ seed: 456, cityName: 'Persistante' });
   state.resources.wood = 321;
@@ -433,6 +446,7 @@ const tests = [
   testExplorationFirstVisitAndRecurringRewards,
   testHomeNeighborSupportIsUseful,
   testCombatVictory,
+  testSettingsPersistence,
   testHydration,
 ];
 

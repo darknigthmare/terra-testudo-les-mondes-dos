@@ -28,7 +28,7 @@ Sous Windows, `start.bat` fait la même chose. Sous macOS ou Linux, utilisez `./
 npm run qa
 ```
 
-La validation contrôle la syntaxe, les règles de contenu, le préache hors ligne, le serveur HTTP et 16 scénarios de simulation : sauvegardes corrompues, économie, voisinages, évolutions, expéditions, commerce, délais d’action, combats et restauration d’une partie.
+La validation contrôle la syntaxe, les règles de contenu, le préache hors ligne, le serveur HTTP et 17 scénarios de simulation : sauvegardes corrompues, économie, voisinages, évolutions, expéditions, commerce, délais d’action, combats et restauration d’une partie.
 
 ## Boucle de jeu
 
@@ -56,6 +56,7 @@ La validation contrôle la syntaxe, les règles de contenu, le préache hors lig
 - 15 quêtes de campagne, 8 expéditions, 10 événements à choix et un journal de partie.
 - Conclusion de campagne au dernier âge et huit objectifs d’héritage pour prolonger le mode libre.
 - Trois difficultés.
+- Réglages d’accessibilité enregistrés avec la partie : animations réduites, taille du texte, contraste élevé et volumes séparés pour les effets et l’ambiance.
 - Sauvegarde automatique, sauvegarde manuelle, export et import JSON.
 - Interface responsive pour ordinateur, tablette et téléphone.
 - Son procédural et ambiance générée par Web Audio.

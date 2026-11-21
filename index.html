@@ -86,6 +86,7 @@
         <button id="speedBtn" class="speed-button" type="button" title="Vitesse du jeu">×1</button>
         <button id="saveBtn" class="icon-button" type="button" title="Sauvegarder" aria-label="Sauvegarder"></button>
         <button id="soundBtn" class="icon-button" type="button" title="Son" aria-label="Activer ou couper le son"></button>
+        <button id="settingsBtn" class="icon-button" type="button" title="Réglages" aria-label="Ouvrir les réglages d’accessibilité"></button>
         <button id="helpBtn" class="icon-button" type="button" title="Aide" aria-label="Ouvrir l’aide"></button>
       </div>
     </header>
@@ -168,6 +169,49 @@
       <p id="combatResultText"></p>
       <div id="combatReward" class="reward-grid"></div>
       <button id="closeCombatBtn" class="button primary full" type="button">Revenir à la cité</button>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="modal-layer" hidden>
+    <div class="modal-card settings-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <button id="closeSettingsBtn" class="modal-close" type="button" aria-label="Fermer">×</button>
+      <span class="eyebrow">CONFORT DU JEU</span>
+      <h2 id="settingsTitle" tabindex="-1">Réglages d’accessibilité</h2>
+      <p>Ces réglages sont enregistrés avec votre partie et retrouvés au chargement.</p>
+
+      <div class="settings-row">
+        <div>
+          <strong id="reduceMotionLabel">Réduire les animations</strong>
+          <small>Fige les mouvements décoratifs de la carapace et les transitions.</small>
+        </div>
+        <button id="reduceMotionSwitch" class="switch-button" type="button" role="switch" aria-checked="false" aria-labelledby="reduceMotionLabel"></button>
+      </div>
+
+      <div class="settings-row settings-row-wide">
+        <div>
+          <strong id="textScaleLabel">Taille du texte</strong>
+          <small>Agrandit l’interface et les libellés sans changer les règles.</small>
+        </div>
+        <div id="textScaleOptions" class="segmented" role="radiogroup" aria-labelledby="textScaleLabel"></div>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <strong id="highContrastLabel">Contraste élevé</strong>
+          <small>Renforce les traits, les bordures et la lisibilité des textes secondaires.</small>
+        </div>
+        <button id="highContrastSwitch" class="switch-button" type="button" role="switch" aria-checked="false" aria-labelledby="highContrastLabel"></button>
+      </div>
+
+      <div class="settings-slider">
+        <span><label for="soundVolume"><strong>Effets sonores</strong></label><output id="soundVolumeValue" for="soundVolume">80 %</output></span>
+        <input id="soundVolume" type="range" min="0" max="100" step="5" value="80" />
+      </div>
+
+      <div class="settings-slider">
+        <span><label for="ambientVolume"><strong>Ambiance marine</strong></label><output id="ambientVolumeValue" for="ambientVolume">60 %</output></span>
+        <input id="ambientVolume" type="range" min="0" max="100" step="5" value="60" />
+      </div>
     </div>
   </div>
 

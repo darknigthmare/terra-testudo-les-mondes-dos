@@ -52,6 +52,7 @@ import {
   simulateSecond,
   startExpedition,
   startRaid,
+  TEXT_SCALES,
   tradeWithNode,
   unlockedBuildingIds,
 } from './state.js';
@@ -74,6 +75,7 @@ const elements = {
   speedBtn: $('#speedBtn'),
   saveBtn: $('#saveBtn'),
   soundBtn: $('#soundBtn'),
+  settingsBtn: $('#settingsBtn'),
   helpBtn: $('#helpBtn'),
   commandPanel: $('#commandPanel'),
   inspectorPanel: $('#inspectorPanel'),
@@ -105,6 +107,16 @@ const elements = {
   combatResultText: $('#combatResultText'),
   combatReward: $('#combatReward'),
   closeCombatBtn: $('#closeCombatBtn'),
+  settingsModal: $('#settingsModal'),
+  closeSettingsBtn: $('#closeSettingsBtn'),
+  settingsTitle: $('#settingsTitle'),
+  reduceMotionSwitch: $('#reduceMotionSwitch'),
+  highContrastSwitch: $('#highContrastSwitch'),
+  textScaleOptions: $('#textScaleOptions'),
+  soundVolume: $('#soundVolume'),
+  soundVolumeValue: $('#soundVolumeValue'),
+  ambientVolume: $('#ambientVolume'),
+  ambientVolumeValue: $('#ambientVolumeValue'),
   helpModal: $('#helpModal'),
   closeHelpBtn: $('#closeHelpBtn'),
   helpScenes: $('#helpScenes'),
@@ -131,6 +143,7 @@ function paintStaticIcons() {
   elements.pauseBtn.innerHTML = controlIcon('pause');
   elements.saveBtn.innerHTML = controlIcon('save');
   elements.soundBtn.innerHTML = controlIcon('sound');
+  elements.settingsBtn.innerHTML = controlIcon('settings');
   elements.helpBtn.innerHTML = controlIcon('help');
   elements.campaignCrown.innerHTML = goalIcon('elder');
 }
@@ -149,6 +162,7 @@ const ui = {
   view: 'shell',
   dismissedCombatId: null,
   newGame: false,
+  reduceMotion: false,
 };
 
 let lastFrame = performance.now();
@@ -326,6 +340,58 @@ function closeHelp() {
   restoreModalFocus();
 }
 
+const TEXT_SCALE_LABELS = { 1: 'Normale', 1.15: 'Grande', 1.3: 'Très grande' };
+
+function applySettings() {
+  const settings = state?.settings || {};
+  const prefersReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
+  document.body.classList.toggle('reduce-motion', Boolean(settings.reduceMotion));
+  document.body.classList.toggle('high-contrast', Boolean(settings.highContrast));
+  document.documentElement.style.setProperty('--text-scale', String(settings.textScale || 1));
+  audio.setVolumes({ sound: settings.soundVolume, ambient: settings.ambientVolume });
+  ui.reduceMotion = Boolean(settings.reduceMotion) || prefersReduced;
+}
+
+function renderSettings() {
+  const settings = state?.settings;
+  if (!settings) return;
+  elements.reduceMotionSwitch.classList.toggle('on', settings.reduceMotion);
+  elements.reduceMotionSwitch.setAttribute('aria-checked', String(settings.reduceMotion));
+  elements.highContrastSwitch.classList.toggle('on', settings.highContrast);
+  elements.highContrastSwitch.setAttribute('aria-checked', String(settings.highContrast));
+  elements.textScaleOptions.innerHTML = TEXT_SCALES.map((scale) => `
+    <button class="segmented-option ${scale === settings.textScale ? 'active' : ''}" data-scale="${scale}" type="button" role="radio" aria-checked="${scale === settings.textScale}">${TEXT_SCALE_LABELS[scale]}</button>`).join('');
+  const soundPercent = Math.round(settings.soundVolume * 100);
+  const ambientPercent = Math.round(settings.ambientVolume * 100);
+  elements.soundVolume.value = String(soundPercent);
+  elements.ambientVolume.value = String(ambientPercent);
+  elements.soundVolumeValue.textContent = `${soundPercent} %`;
+  elements.ambientVolumeValue.textContent = `${ambientPercent} %`;
+}
+
+function updateSetting(patch, persist = true) {
+  if (!state?.settings) return;
+  state.settings = { ...state.settings, ...patch };
+  applySettings();
+  renderSettings();
+  if (persist) saveGame(state, false);
+}
+
+function openSettings() {
+  if (!state) return;
+  rememberModalFocus();
+  renderSettings();
+  elements.settingsModal.hidden = false;
+  elements.settingsTitle.focus({ preventScroll: true });
+  audio.play('click');
+}
+
+function closeSettings() {
+  if (elements.settingsModal.hidden) return;
+  elements.settingsModal.hidden = true;
+  restoreModalFocus();
+}
+
 function campaignStatsHtml() {
   const values = [
     ['Jours vécus', state.day],
@@ -420,6 +486,7 @@ function enterGame(nextState, isNew = false) {
   ui.dismissedCombatId = null;
   elements.startScreen.hidden = true;
   elements.gameApp.hidden = false;
+  applySettings();
 
   if (!renderer) renderer = new TurtleRenderer(elements.gameCanvas);
   renderer.setMode('shell');
@@ -432,6 +499,7 @@ function enterGame(nextState, isNew = false) {
   elements.commandPanel.classList.toggle('mobile-open', window.innerWidth <= 980 && isNew);
   elements.inspectorPanel.classList.remove('mobile-open');
   renderAll(true);
+  renderSettings();
   saveGame(state, true);
   if ((isNew || Number(state.tutorialStep) < 1) && state.tier === 0) {
     window.setTimeout(() => openHelp(0), 0);
@@ -1215,7 +1283,7 @@ function frame(now) {
     if (!simulationBlocked) simulateSecond(state, delta);
     renderer.selectedTile = ui.selectedTile;
     renderer.selectedNodeId = ui.selectedWorldNodeId;
-    const renderDelta = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : delta;
+    const renderDelta = ui.reduceMotion ? 0 : delta;
     renderer.render(state, ui, renderDelta);
     processAudioCues(now);
     processMessages();
@@ -1399,6 +1467,27 @@ function bindEvents() {
     showToast(enabled ? 'Son activé.' : 'Son coupé.', 'info');
   });
 
+  elements.settingsBtn.addEventListener('click', openSettings);
+  elements.closeSettingsBtn.addEventListener('click', closeSettings);
+  elements.reduceMotionSwitch.addEventListener('click', () => {
+    updateSetting({ reduceMotion: !state?.settings?.reduceMotion });
+    audio.play('click');
+  });
+  elements.highContrastSwitch.addEventListener('click', () => {
+    updateSetting({ highContrast: !state?.settings?.highContrast });
+    audio.play('click');
+  });
+  elements.textScaleOptions.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-scale]');
+    if (!button) return;
+    updateSetting({ textScale: Number(button.dataset.scale) });
+    audio.play('click');
+  });
+  elements.soundVolume.addEventListener('input', (event) => updateSetting({ soundVolume: Number(event.target.value) / 100 }, false));
+  elements.soundVolume.addEventListener('change', (event) => updateSetting({ soundVolume: Number(event.target.value) / 100 }));
+  elements.ambientVolume.addEventListener('input', (event) => updateSetting({ ambientVolume: Number(event.target.value) / 100 }, false));
+  elements.ambientVolume.addEventListener('change', (event) => updateSetting({ ambientVolume: Number(event.target.value) / 100 }));
+
   elements.helpBtn.addEventListener('click', () => openHelp(0));
   elements.closeHelpBtn.addEventListener('click', closeHelp);
   elements.helpDoneBtn.addEventListener('click', closeHelp);
@@ -1447,12 +1536,13 @@ function bindEvents() {
 
   window.addEventListener('keydown', (event) => {
     if (!state) return;
-    const activeModal = [elements.helpModal, elements.eventModal, elements.combatModal, elements.campaignModal]
+    const activeModal = [elements.helpModal, elements.settingsModal, elements.eventModal, elements.combatModal, elements.campaignModal]
       .find((modal) => !modal.hidden);
     if (activeModal) {
       trapModalFocus(event, activeModal);
       if (event.key === 'Escape') {
         if (activeModal === elements.helpModal) closeHelp();
+        else if (activeModal === elements.settingsModal) closeSettings();
         else if (activeModal === elements.campaignModal) closeCampaignConclusion();
       }
       return;
@@ -1489,6 +1579,9 @@ function bindEvents() {
 }
 
 bindEvents();
+window.matchMedia?.('(prefers-reduced-motion: reduce)')?.addEventListener?.('change', () => {
+  if (state) applySettings();
+});
 requestAnimationFrame(frame);
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {

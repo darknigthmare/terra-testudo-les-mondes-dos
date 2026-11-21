@@ -2,9 +2,12 @@ export class AudioManager {
   constructor() {
     this.context = null;
     this.master = null;
+    this.sfx = null;
+    this.ambience = null;
     this.ambient = null;
     this.enabled = true;
     this.started = false;
+    this.volumes = { sound: 0.8, ambient: 0.6 };
   }
 
   async ensure() {
@@ -16,6 +19,13 @@ export class AudioManager {
       this.master = this.context.createGain();
       this.master.gain.value = 0.16;
       this.master.connect(this.context.destination);
+      // Separate buses so effects and ambience keep their own saved volume.
+      this.sfx = this.context.createGain();
+      this.sfx.gain.value = this.volumes.sound;
+      this.sfx.connect(this.master);
+      this.ambience = this.context.createGain();
+      this.ambience.gain.value = this.volumes.ambient;
+      this.ambience.connect(this.master);
     }
     if (this.context.state === 'suspended') await this.context.resume();
     if (!this.started) this.startAmbient();
@@ -33,13 +43,23 @@ export class AudioManager {
     return this.enabled;
   }
 
+  setVolumes(next = {}) {
+    const sound = Number.isFinite(Number(next.sound)) ? Math.max(0, Math.min(1, Number(next.sound))) : this.volumes.sound;
+    const ambient = Number.isFinite(Number(next.ambient)) ? Math.max(0, Math.min(1, Number(next.ambient))) : this.volumes.ambient;
+    this.volumes = { sound, ambient };
+    if (this.context) {
+      this.sfx?.gain.setTargetAtTime(sound, this.context.currentTime, 0.05);
+      this.ambience?.gain.setTargetAtTime(ambient, this.context.currentTime, 0.05);
+    }
+  }
+
   startAmbient() {
     if (!this.context || this.started) return;
     this.started = true;
     const now = this.context.currentTime;
     const ambientGain = this.context.createGain();
     ambientGain.gain.value = 0.055;
-    ambientGain.connect(this.master);
+    ambientGain.connect(this.ambience || this.master);
 
     const low = this.context.createOscillator();
     low.type = 'sine';
@@ -78,7 +98,7 @@ export class AudioManager {
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, volume), now + 0.012);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    oscillator.connect(gain).connect(this.master);
+    oscillator.connect(gain).connect(this.sfx || this.master);
     oscillator.start(now);
     oscillator.stop(now + duration + 0.03);
   }

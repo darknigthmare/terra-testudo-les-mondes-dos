@@ -26,9 +26,15 @@
   --font-display: "Palatino Linotype", Palatino, "Iowan Old Style", "Book Antiqua", Georgia, serif;
   --font-ui: "Segoe UI", Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
   --topbar-h: 70px;
+  --text-scale: 1;
   font-family: var(--font-ui);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+/* Player-chosen text size; every rem in the interface follows it. */
+html {
+  font-size: calc(16px * var(--text-scale));
 }
 
 * {
@@ -2583,4 +2589,176 @@ h2[tabindex="-1"]:focus-visible {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* Settings */
+.settings-card {
+  width: min(560px, 94vw);
+}
+
+.settings-card h2 {
+  font-size: 1.7rem;
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  border-top: 1px solid var(--line);
+  padding: 14px 0;
+}
+
+.settings-row > div > strong,
+.settings-slider strong {
+  display: block;
+  color: #e9e6d2;
+  font-size: 0.74rem;
+}
+
+.settings-row small {
+  display: block;
+  margin-top: 3px;
+  color: var(--faint);
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+.switch-button {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 13px;
+  padding: 0;
+  background: rgba(6, 20, 24, 0.7);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.switch-button::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--faint);
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.switch-button.on {
+  border-color: rgba(236, 214, 156, 0.62);
+  background: rgba(198, 166, 96, 0.2);
+}
+
+.switch-button.on::after {
+  transform: translateX(20px);
+  background: var(--gold-bright);
+}
+
+.settings-row .segmented {
+  align-self: center;
+}
+
+.segmented {
+  display: flex;
+  border: 1px solid var(--line-strong);
+}
+
+.segmented-option {
+  border: 0;
+  border-left: 1px solid var(--line);
+  padding: 7px 10px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.segmented-option:first-child {
+  border-left: 0;
+}
+
+.segmented-option.active {
+  color: #171208;
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+}
+
+.settings-slider {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding: 14px 0;
+}
+
+.settings-slider > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settings-slider output {
+  color: var(--gold-bright);
+  font-size: 0.66rem;
+}
+
+.settings-slider input[type="range"] {
+  width: 100%;
+  accent-color: var(--gold);
+}
+
+@media (max-width: 620px) {
+  .settings-row-wide {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 10px;
+  }
+
+  .settings-row-wide .segmented {
+    width: 100%;
+  }
+
+  .settings-row-wide .segmented-option {
+    flex: 1 1 0;
+    text-align: center;
+  }
+}
+
+/* Player comfort preferences */
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+body.high-contrast {
+  --text: #ffffff;
+  --muted: #e3ece3;
+  --faint: #b9cac0;
+  --line: rgba(230, 242, 228, 0.34);
+  --line-strong: rgba(250, 242, 206, 0.62);
+  --panel: rgba(4, 18, 22, 0.98);
+  --panel-2: rgba(8, 30, 32, 0.97);
+  --gold: #e8ca73;
+  --gold-bright: #fff2c6;
+}
+
+body.high-contrast::after {
+  opacity: 0.4;
+}
+
+body.high-contrast .settings-row small,
+body.high-contrast .card-description,
+body.high-contrast .legacy-goal small {
+  color: var(--muted);
 }
