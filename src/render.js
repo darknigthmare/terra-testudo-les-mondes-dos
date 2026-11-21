@@ -1069,28 +1069,35 @@ export class TurtleRenderer {
       const x = centerX + Math.cos(enemy.angle) * radiusX + tangentX / tangentLength * lane;
       const y = centerY + Math.sin(enemy.angle) * radiusY + tangentY / tangentLength * lane
         + (enemy.type === 'air' ? -35 + wobble : wobble * 0.25);
-      this.enemyPositions.set(enemy.uid, { x, y });
       const scale = clamp(0.70 + (1 - approach) * 0.36, 0.70, 1.06);
+      // Keep the whole badge on screen: a raid that spawns half outside the
+      // canvas cannot be identified at the moment it matters.
+      const padX = 24 * scale + 3;
+      const padTop = 26 * scale + 8;
+      const padBottom = 16 * scale + 6;
+      const shownX = clamp(x, padX, this.width - padX);
+      const shownY = clamp(y, padTop, this.height - padBottom);
+      this.enemyPositions.set(enemy.uid, { x: shownX, y: shownY });
 
       if (enemy.type === 'air') {
-        drawShadow(ctx, x, y + 35, 28 * scale, 8 * scale, 0.18);
+        drawShadow(ctx, shownX, shownY + 35, 28 * scale, 8 * scale, 0.18);
       } else {
         ctx.fillStyle = 'rgba(198, 236, 231, .20)';
         ctx.beginPath();
-        ctx.ellipse(x, y + 13 * scale, 24 * scale, 6 * scale, 0, 0, Math.PI * 2);
+        ctx.ellipse(shownX, shownY + 13 * scale, 24 * scale, 6 * scale, 0, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.save();
-      ctx.translate(x, y);
+      ctx.translate(shownX, shownY);
       ctx.scale(scale, scale);
       ctx.globalAlpha = enemy.hp > 0 ? 1 : 0.25;
-      ctx.fillStyle = enemy.hitFlash > 0 ? '#f3d7bd' : enemy.type === 'air' ? '#b88b78' : '#8f775a';
+      ctx.fillStyle = enemy.hitFlash > 0 ? '#f3d7bd' : enemy.type === 'air' ? '#b88b78' : '#9b8163';
       roundedRect(ctx, -22, -14, 44, 28, 8);
       ctx.fill();
       ctx.save();
       ctx.translate(-9.6, -9.6);
       ctx.scale(0.8, 0.8);
-      ctx.strokeStyle = '#2b2524';
+      ctx.strokeStyle = '#100e0e';
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -1101,10 +1108,10 @@ export class TurtleRenderer {
       if (enemy.hp > 0) {
         const hp = clamp(enemy.hp / enemy.maxHp, 0, 1);
         ctx.fillStyle = 'rgba(10,18,20,.72)';
-        roundedRect(ctx, x - 20, y - 25, 40, 5, 2.5);
+        roundedRect(ctx, shownX - 20, shownY - 25, 40, 5, 2.5);
         ctx.fill();
         ctx.fillStyle = hp > 0.55 ? '#a7c77a' : '#d87768';
-        roundedRect(ctx, x - 19, y - 24, 38 * hp, 3, 1.5);
+        roundedRect(ctx, shownX - 19, shownY - 24, 38 * hp, 3, 1.5);
         ctx.fill();
       }
     }

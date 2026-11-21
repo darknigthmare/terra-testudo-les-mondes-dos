@@ -33,6 +33,16 @@ Tous les modules JavaScript, le serveur, le service worker et les tests passent 
 
 Le préache du service worker est contrôlé : chaque fichier déclaré existe et chaque module importé par le jeu y figure, si bien que le jeu redémarre hors ligne avec ses pictogrammes.
 
+## Contrôle de lisibilité des pictogrammes
+
+Le même contrôle vérifie qu’un futur redessin ne peut pas réintroduire les défauts corrigés :
+
+- les **288 tracés et 30 formes** restent sur la grille 24 (débordement toléré 0,6 px), arcs échantillonnés compris ;
+- les **15 tailles d’icône par contexte** déclarées dans `styles.css` respectent leur plancher et restent carrées, et les **6 largeurs de trait** par contexte ne descendent pas sous 1,3 ;
+- les **6 paires de contraste codées en dur** restent conformes : trait d’ennemi sur pastille maritime 5,24:1 et aérienne 6,42:1, texte principal 15,39:1, texte discret 4,85:1, texte doré 12,03:1 et segment actif 13,05:1 (seuil 4,5:1 partout).
+
+Le palier 1 de lisibilité s’appuie sur ce contrôle : raie céleste, défenses, ennemis et récifs basaltiques redessinés sur la grille 24, symboles de carte portés de 19 à 23 px avec un trait de 1,8, et trait d’ennemi du canvas éclairci de `#2b2524` à `#100e0e` sur une pastille `#9b8163`. Les cartes verrouillées gardent leur pictogramme à pleine opacité et seule leur prose s’efface. Les badges d’ennemis sont bornés au cadre du canvas pour qu’un raid ne spawn jamais à moitié hors champ.
+
 Le serveur local répond correctement sur :
 
 - `/` avec l’interface HTML ;

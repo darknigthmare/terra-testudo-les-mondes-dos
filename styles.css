@@ -169,13 +169,13 @@ h2[tabindex="-1"]:focus-visible {
 }
 
 .card-symbol .icon {
-  width: 19px;
-  height: 19px;
+  width: 23px;
+  height: 23px;
   vertical-align: 0;
 }
 
 .card-symbol .icon g {
-  stroke-width: 1.45;
+  stroke-width: 1.8;
 }
 
 .legacy-goal > span .icon {
@@ -1450,7 +1450,22 @@ h2[tabindex="-1"]:focus-visible {
 
 .expedition-card.locked,
 .node-card.locked {
-  opacity: 0.46;
+  border-color: rgba(203, 189, 143, 0.07);
+  background: rgba(4, 14, 18, 0.26);
+}
+
+/* A locked card keeps a full-strength pictogram; only its prose fades. */
+.expedition-card.locked .card-header h4,
+.expedition-card.locked .card-header small,
+.node-card.locked .card-header h4,
+.node-card.locked .card-header small,
+.node-card.locked .card-description {
+  color: var(--faint);
+}
+
+.expedition-card.locked .card-description,
+.expedition-card.locked .cost-row {
+  opacity: 0.68;
 }
 
 .card-header {

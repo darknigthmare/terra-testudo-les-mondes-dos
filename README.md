@@ -28,7 +28,7 @@ Sous Windows, `start.bat` fait la même chose. Sous macOS ou Linux, utilisez `./
 npm run qa
 ```
 
-La validation contrôle la syntaxe, les règles de contenu, le préache hors ligne, le serveur HTTP et 17 scénarios de simulation : sauvegardes corrompues, économie, voisinages, évolutions, expéditions, commerce, délais d’action, combats et restauration d’une partie.
+La validation contrôle la syntaxe, les règles de contenu, le préache hors ligne, la lisibilité des pictogrammes, le serveur HTTP et 17 scénarios de simulation : sauvegardes corrompues, économie, voisinages, évolutions, expéditions, commerce, délais d’action, combats et restauration d’une partie.
 
 ## Boucle de jeu
 
